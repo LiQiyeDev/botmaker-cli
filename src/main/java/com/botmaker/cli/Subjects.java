@@ -17,13 +17,19 @@ import java.util.Set;
  * different questions: {@link #fromDirectory} validates the build in front of you, and
  * {@link #fromCoordinate} validates what the world can actually download — the one the registry's CI asks,
  * and the only one that catches a plugin that works locally and publishes a pom nobody can resolve.
+ *
+ * <p><b>Public, and only {@link #fromCoordinate} is.</b> The registry's gate
+ * ({@link com.botmaker.cli.registry.RegistryGate}) resolves a published coordinate through this same class,
+ * so that "the gate downloads what a bot project would download" is one implementation rather than two.
+ * {@link #fromDirectory} stays package-private: a working copy is the author's question, and the registry
+ * has no working copy to ask about.
  */
-final class Subjects {
+public final class Subjects {
 
     private final Console console;
     private final Mvn mvn;
 
-    Subjects(Console console, Mvn mvn) {
+    public Subjects(Console console, Mvn mvn) {
         this.console = console;
         this.mvn = mvn;
     }
@@ -69,7 +75,8 @@ final class Subjects {
      * asks what the <em>published</em> pom declares — and a plugin whose working copy is right and whose
      * published pom says {@code 0.0.0-SNAPSHOT} is a real failure mode this project has shipped before.
      */
-    PluginSubject fromCoordinate(String coordinate, Set<String> claimedIds, Set<String> claimedValueTypeIds)
+    public PluginSubject fromCoordinate(String coordinate, Set<String> claimedIds,
+                                        Set<String> claimedValueTypeIds)
             throws IOException {
         String[] parts = coordinate.split(":");
         if (parts.length != 3) {

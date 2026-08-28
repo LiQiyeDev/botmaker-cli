@@ -38,6 +38,25 @@ each verb accepts — **three statements of one fact, which had already disagree
 `botmaker new` passed `--botmaker-version`, which was silently ignored and generated a project pinned to
 something else. Add an option by adding a field; there is nowhere else to say it.
 
+## The registry's gate is in this module too
+
+`com.botmaker.cli.registry.RegistryGate` is what `botmaker-plugin-registry`'s CI runs on a pull request. It
+lives here for the same reason the validator is a library: **it must be the code the author already ran.**
+The registry's workflow resolves this module's *main* artifact and calls the gate; everything the gate adds
+on top of `botmaker validate` is what only the registry knows — the ids every other entry claims
+(`Registry.claimedValueTypeIds`, which fills the `PluginSubject` parameter a local run always leaves empty)
+and the rule that `index.json` is generated. A check belongs in `PluginValidator`, never here.
+
+It parses two positional arguments by reading an array, and that is not laziness: picocli is `optional`
+precisely so a library consumer resolves no parser, and a gate that needed one would undo it. Changed paths
+arrive as `@file` because a pull request chooses its own filenames — a path interpolated into a workflow's
+`run:` line is a command injection.
+
+`Subjects` and `Mvn` are public for this one caller, and only `fromCoordinate` is: a working copy is the
+author's question, and the registry has none. `Console.reportAside` exists because `botmaker publish`'s
+stdout is the entry JSON — `--dry-run > plugins/<id>.json` has to be a file a parser will read, which is the
+same stdout/stderr rule `Console` opens with.
+
 ## Why there is no JavaFX in it
 
 `SlotEditor.create` returns `javafx.scene.Node`, so `javafx-controls` is on the **compile** classpath at
@@ -96,7 +115,7 @@ same phase as this module.
 ## Building
 
 ```bash
-mvn test        # CommandLineTest, PomsTest, PluginValidatorTest
+mvn test        # CommandLineTest, PomsTest, PluginValidatorTest, RegistryTest
 mvn install     # the library and the -all jar
 ```
 

@@ -20,7 +20,7 @@ public final class Console {
     private final boolean quiet;
     private final boolean colour;
 
-    Console(boolean quiet) {
+    public Console(boolean quiet) {
         this.quiet = quiet;
         // No colour when stdout is redirected. System.console() is null under a pipe and under CI, which is
         // exactly where an escape sequence turns a readable log into a smear of brackets.
@@ -56,10 +56,26 @@ public final class Console {
      * cannot be asked at all outside the registry's own CI.
      */
     public void report(List<CheckResult> results) {
+        report(results, System.out);
+    }
+
+    /**
+     * The same report, on {@code stderr}.
+     *
+     * <p>For {@code botmaker publish}, whose <em>result</em> is the entry JSON: a report sharing that stream
+     * makes {@code --dry-run > entry.json} produce something no parser will read, which is exactly the
+     * failure the stdout/stderr split above exists to prevent. Validation is a diagnostic there and the
+     * entry is the answer.
+     */
+    public void reportAside(List<CheckResult> results) {
+        report(results, System.err);
+    }
+
+    private void report(List<CheckResult> results, java.io.PrintStream stream) {
         for (CheckResult result : results) {
-            out(badge(result.status()) + " " + pad(result.check().id()) + result.check().title());
+            stream.println(badge(result.status()) + " " + pad(result.check().id()) + result.check().title());
             for (String detail : result.detail()) {
-                out("         " + detail);
+                stream.println("         " + detail);
             }
         }
     }

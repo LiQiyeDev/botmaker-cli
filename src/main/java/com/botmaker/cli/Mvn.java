@@ -19,11 +19,11 @@ import java.util.List;
  * <p>A wrapper wins when there is one: a project carrying {@code mvnw} has said which Maven it wants, and
  * ignoring that is how a build behaves differently under this tool than under the author's own hands.
  */
-final class Mvn {
+public final class Mvn {
 
     private final Console console;
 
-    Mvn(Console console) {
+    public Mvn(Console console) {
         this.console = console;
     }
 

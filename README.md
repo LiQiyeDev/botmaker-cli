@@ -91,6 +91,13 @@ botmaker publish --repo me/discord-notifier --description "Sends a message when 
                  --tags notifications --dry-run
 ```
 
+The pull request adds **one file**, `plugins/<plugin-id>.json` — the registry's `index.json` is generated
+from those files by its own CI and nobody edits it. So two authors publishing on the same day open two pull
+requests with no line in common, and a second plugin cannot take an id git already holds a file for.
+
+`--dry-run`'s stdout is the entry and nothing else, so `botmaker publish --dry-run > plugins/<id>.json` is
+the by-hand path when `gh` is not installed. The validation report goes to stderr.
+
 ## Using `validate` as a library
 
 The main artifact is a **library**, and the executable jar is the `all` classifier. That split exists for one
@@ -117,7 +124,7 @@ them is `com.botmaker.cli.Subjects`, and that is where Maven lives.
 ## Building
 
 ```bash
-mvn test        # CommandLineTest, PomsTest, PluginValidatorTest
+mvn test        # CommandLineTest, PomsTest, PluginValidatorTest, RegistryTest
 mvn install     # com.github.LiQiyeDev:botmaker-cli:0.0.0-SNAPSHOT, plus the -all jar
 java -jar target/botmaker-cli-0.0.0-SNAPSHOT-all.jar --help
 ```

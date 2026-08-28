@@ -1,6 +1,7 @@
 package com.botmaker.cli;
 
 import com.botmaker.cli.project.Poms;
+import com.botmaker.cli.registry.Registry;
 import com.botmaker.cli.registry.RegistryEntry;
 import com.botmaker.cli.validate.CheckResult;
 import com.botmaker.cli.validate.PluginSubject;
@@ -8,8 +9,6 @@ import com.botmaker.cli.validate.PluginValidator;
 import com.botmaker.plugin.api.StudioPlugin;
 import com.botmaker.plugin.api.value.ValueType;
 import com.botmaker.plugin.host.PluginLoader;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ParentCommand;
@@ -25,7 +24,7 @@ import java.util.concurrent.Callable;
 /**
  * {@code botmaker publish} — validate, then compose the registry entry and open the pull request.
  *
- * <p><b>The author never hand-edits {@code index.json}.</b> Almost every field in an entry is something the
+ * <p><b>The author never hand-edits anything in the registry.</b> Almost every field in an entry is something the
  * plugin already says about itself — its id, its display name, the value type ids it registers, the contract
  * version its pom declares — and a human retyping those is a human introducing a typo into the one file that
  * is the registry's primary key. What is genuinely the author's, and only that, is asked for: the
@@ -34,6 +33,11 @@ import java.util.concurrent.Callable;
  * <p>Validation runs first and a failure stops it. That is the whole point of {@code validate} being a
  * library rather than a command: the check that refuses the pull request is the check that refused to open
  * it.
+ *
+ * <p><b>One file, {@code plugins/&lt;plugin-id&gt;.json}, and never the index.</b> The index is generated
+ * from those files by the registry's own CI. That is what makes two authors publishing on the same day two
+ * pull requests with no line in common — an entry appended to a shared array conflicts with every other
+ * submission, and is a read-modify-write race against a base SHA somebody else may have moved.
  */
 @Command(name = "publish",
         header = "Validate, then open the registry pull request.",
@@ -43,7 +47,6 @@ import java.util.concurrent.Callable;
 final class PublishCommand implements Callable<Integer> {
 
     private static final String REGISTRY_REPO = "LiQiyeDev/botmaker-plugin-registry";
-    private static final String INDEX = "index.json";
 
     @ParentCommand
     private Main parent;
@@ -82,24 +85,26 @@ final class PublishCommand implements Callable<Integer> {
         Path dir = Path.of(directory).toAbsolutePath().normalize();
         PluginSubject subject = parent.subjects().fromDirectory(dir, !noBuild);
 
+        // Aside, on stderr: this command's stdout is the entry, and `--dry-run > entry.json` has to be a
+        // file a parser will read.
         List<CheckResult> results = PluginValidator.validate(subject);
-        console.report(results);
+        console.reportAside(results);
         if (!PluginValidator.passed(results)) {
-            console.out("");
             console.error("not publishing: the plugin does not pass its own checks, and the registry runs"
                     + " these same checks on the pull request");
             return 1;
         }
 
         RegistryEntry entry = compose(subject);
-        String json = mapper().writerWithDefaultPrettyPrinter().writeValueAsString(entry);
+        String json = Registry.mapper().writerWithDefaultPrettyPrinter().writeValueAsString(entry);
 
         if (dryRun || repo == null) {
             if (repo == null) {
                 console.warn("--repo <owner/name> was not given, so this is a dry run: the registry entry"
                         + " needs somewhere for a reader to go and look at the source.");
             }
-            console.out("");
+            // Nothing but the entry on stdout: `botmaker publish --dry-run > plugins/<id>.json` is the
+            // by-hand path when `gh` is unavailable, and a blank line makes that file not-JSON.
             console.out(json);
             return 0;
         }
@@ -144,11 +149,15 @@ final class PublishCommand implements Callable<Integer> {
                 List.of(tags.split("\\s*,\\s*")).stream().filter(t -> !t.isBlank()).toList(),
                 minContractVersion != null ? minContractVersion : contractVersion,
                 valueTypeIds,
+                // The version this working copy would publish under, which is the version the registry's
+                // gate will resolve and run the same checks against. A verifiedAt with no version beside it
+                // is a date attached to no artifact.
+                self.version(),
                 LocalDate.now().toString());
     }
 
     /**
-     * Forks, branches, appends the entry and opens the PR — all through {@code gh}.
+     * Forks, branches, writes the entry file and opens the PR — all through {@code gh}.
      *
      * <p>{@code gh} rather than the REST API directly, because it already holds the user's credential and
      * because a tool that asked a plugin author for a GitHub token would be asking for the one thing this
@@ -168,16 +177,19 @@ final class PublishCommand implements Callable<Integer> {
         if (Files.isDirectory(cloned)) {
             clone = cloned;
         }
-        Path index = clone.resolve(INDEX);
-        if (!Files.isRegularFile(index)) {
-            console.error("no " + INDEX + " in " + REGISTRY_REPO + " — the registry is not published yet."
-                    + " Re-run with --dry-run and open the pull request by hand.");
+        Path entries = clone.resolve(Registry.ENTRIES_DIRECTORY);
+        if (!Files.isDirectory(entries)) {
+            console.error("no " + Registry.ENTRIES_DIRECTORY + "/ in " + REGISTRY_REPO + " — the registry is"
+                    + " not published yet. Re-run with --dry-run and open the pull request by hand.");
             return 1;
         }
         String branch = "add-" + entry.id().replaceAll("[^a-zA-Z0-9]+", "-");
         run(clone, "git", "checkout", "-b", branch);
-        Files.writeString(index, merged(index, entry));
-        run(clone, "git", "add", INDEX);
+        // The filename is the id, so an update rewrites this author's own file and a new plugin adds one:
+        // either way the diff touches nothing anybody else's submission touches.
+        String file = Registry.ENTRIES_DIRECTORY + "/" + entry.id() + ".json";
+        Files.writeString(entries.resolve(entry.id() + ".json"), json + "\n");
+        run(clone, "git", "add", file);
         run(clone, "git", "commit", "-m", "registry: add " + entry.id());
         if (run(clone, "git", "push", "-u", "origin", branch) != 0) {
             console.error("could not push the branch");
@@ -185,31 +197,11 @@ final class PublishCommand implements Callable<Integer> {
         }
         int opened = gh(clone, "pr", "create", "--repo", REGISTRY_REPO, "--title",
                 "Add " + entry.name() + " (" + entry.id() + ")", "--body",
-                "Adds `" + entry.id() + "` (`" + entry.coordinate() + "`).\n\n"
+                "Adds `" + Registry.ENTRIES_DIRECTORY + "/" + entry.id() + ".json` — `"
+                        + entry.coordinate() + ":" + entry.verifiedVersion() + "`.\n\n"
                         + "Composed by `botmaker publish`, which runs the same checks this repository's CI"
                         + " runs.\n\n```json\n" + json + "\n```");
         return opened == 0 ? 0 : 1;
-    }
-
-    /**
-     * Appends the entry to the index, replacing any row that already holds its id.
-     *
-     * <p>Read, mutate, write as text rather than as a model: the file is somebody else's and a round trip
-     * through a generic JSON binding would reformat every entry in it, turning a one-block diff into a
-     * whole-file one that no reviewer can read.
-     */
-    private String merged(Path index, RegistryEntry entry) throws IOException {
-        ObjectMapper mapper = mapper();
-        List<RegistryEntry> entries = new ArrayList<>(List.of(
-                mapper.readValue(Files.readString(index), RegistryEntry[].class)));
-        entries.removeIf(existing -> existing.id().equals(entry.id()));
-        entries.add(entry);
-        entries.sort((a, b) -> a.id().compareTo(b.id()));
-        return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(entries) + "\n";
-    }
-
-    private static ObjectMapper mapper() {
-        return new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
     }
 
     private int gh(Path dir, String... args) throws IOException {

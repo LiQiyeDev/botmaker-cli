@@ -20,7 +20,7 @@ import java.util.List;
  */
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 @JsonPropertyOrder({"id", "name", "coordinate", "repo", "description", "tags", "minContractVersion",
-        "valueTypeIds", "verifiedAt"})
+        "valueTypeIds", "verifiedVersion", "verifiedAt"})
 public record RegistryEntry(
         /** The plugin's own {@code StudioPlugin.id()} — the registry's primary key, and unrenameable. */
         String id,
@@ -43,6 +43,15 @@ public record RegistryEntry(
          * written into project files and so can never be corrected afterwards.
          */
         List<String> valueTypeIds,
+        /**
+         * The version the checks last ran against, and the version the registry's gate resolves.
+         *
+         * <p>{@link #coordinate} deliberately carries none — the index names a plugin, not a release, and
+         * Studio resolves the version to install the same way it resolves the SDK's. But a gate has to
+         * download <em>something</em>, and {@link #verifiedAt} without this would be a date attached to no
+         * artifact: "the checks ran" is only a fact if it says what they ran on.
+         */
+        String verifiedVersion,
         /** The date the checks last ran against this coordinate. A fact about a run, not a warranty. */
         String verifiedAt) {
 
