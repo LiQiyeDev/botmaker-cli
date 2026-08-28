@@ -1,0 +1,10 @@
+{
+  "aliases": {
+    "botmaker": {
+      "script-ref": "com.github.LiQiyeDev:botmaker-cli:RELEASE:all",
+      "description": "The botmaker command: create, validate, run and publish a BotMaker Studio plugin.",
+      "main": "com.botmaker.cli.Main"
+    }
+  },
+  "description": "BotMaker plugin tooling. Run with: jbang botmaker@LiQiyeDev --help"
+}

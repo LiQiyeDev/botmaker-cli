@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+      groupId is com.github.LiQiyeDev for the same reason as every other published module: JitPack serves
+      this repo as com.github.LiQiyeDev:botmaker-cli:<tag> whatever this pom says, so matching it here makes
+      the reactor GAV identical to the published GAV. The version is cosmetic.
+    -->
+    <groupId>com.github.LiQiyeDev</groupId>
+    <artifactId>botmaker-cli</artifactId>
+    <version>0.0.0-SNAPSHOT</version>
+
+    <name>BotMaker CLI</name>
+    <description>
+        The `botmaker` command: create a plugin from the archetype, validate it against the same checks the
+        registry runs, install it into a project and launch Studio against the result, and open the registry
+        pull request.
+    </description>
+
+    <!--
+      TWO ARTIFACTS, AND THE SPLIT IS THE POINT.
+
+      The main jar is a LIBRARY, because `validate` has two callers and they are in different repositories:
+      the plugin author running `botmaker validate` locally, and the registry's CI deciding whether to admit
+      a pull request. A PR that fails for a reason the author could not have seen coming is the failure mode
+      the whole gate exists to avoid, so both must run THE SAME CODE — com.botmaker.cli.validate, which
+      prints nothing, spawns nothing and knows no command line.
+
+      The `-all` classifier is the executable jar (maven-shade-plugin, shadedArtifactAttached). It is what
+      JBang and `java -jar` run. Attaching it rather than replacing the main artifact is what keeps the
+      published pom honest: shade's dependency-reduced pom would otherwise tell the registry's CI that this
+      module has no dependencies, which is true of the fat jar and false of the library.
+    -->
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <junit.version>5.10.2</junit.version>
+        <jackson.version>2.17.2</jackson.version>
+        <!--
+          Only to compile against SlotEditor, whose create() returns javafx.scene.Node. `provided`, so no
+          JavaFX is shaded and the executable jar stays one file for every OS. See the EDITORS check in
+          PluginValidator for what that costs and why it is the right trade.
+        -->
+        <!-- The version botmaker-studio-api itself pins. One JavaFX across the platform: this module never
+             constructs a Node, but it links against the same SlotEditor the contract declares. -->
+        <javafx.version>21</javafx.version>
+        <!-- The reactor/offline values. jitpack.yml injects the released tags from .deps.env at build time. -->
+        <botmaker.studioapi.version>0.0.0-SNAPSHOT</botmaker.studioapi.version>
+        <botmaker.pluginhost.version>0.0.0-SNAPSHOT</botmaker.pluginhost.version>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <!--
+          The loader, and the reason this module exists at all rather than the CLI growing its own eighty
+          lines of delegation inversion. `validate` must load a plugin EXACTLY as Studio does, or it passes
+          things Studio then refuses.
+        -->
+        <dependency>
+            <groupId>com.github.LiQiyeDev</groupId>
+            <artifactId>botmaker-plugin-host</artifactId>
+            <version>${botmaker.pluginhost.version}</version>
+        </dependency>
+
+        <!--
+          The contract, at COMPILE scope, and the difference from botmaker-plugin-host's `provided` is not an
+          oversight. This module is a HOST: the parent-first arm of the loader resolves
+          com.botmaker.plugin.api.** from here, so somebody has to supply it, and here that somebody is us.
+          botmaker-plugin-host declares it `provided` precisely so there is only ever this one copy.
+        -->
+        <dependency>
+            <groupId>com.github.LiQiyeDev</groupId>
+            <artifactId>botmaker-studio-api</artifactId>
+            <version>${botmaker.studioapi.version}</version>
+        </dependency>
+
+        <!-- index.json, and the entry `botmaker publish` composes. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <!--
+          Compile-only. SlotEditor.create returns javafx.scene.Node, so naming SlotEditor at all requires the
+          type on the compile classpath — and nothing here ever constructs a Node.
+        -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>${javafx.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <!--
+          No <finalName>. It renames only the MAIN artifact, so the pair came out as botmaker-cli.jar beside
+          botmaker-cli-0.0.0-SNAPSHOT-all.jar — two naming schemes for two halves of one build, and a
+          jreleaser.yml path that looked right and matched nothing. The default names both after the
+          artifact and version; the release renames the asset once, on the way out.
+        -->
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+            </plugin>
+
+            <!--
+              The executable jar, attached under the `all` classifier rather than replacing the main
+              artifact — see the two-artifacts note at the top.
+
+              createDependencyReducedPom is false because this module also runs flatten-maven-plugin, and
+              two plugins rewriting one pom is a race with no winner. Nothing needs the reduced pom: it
+              describes the fat jar, and the fat jar is not what anybody resolves as a dependency.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.3</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <shadedClassifierName>all</shadedClassifierName>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <transformers>
+                                <transformer
+                                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.botmaker.cli.Main</mainClass>
+                                </transformer>
+                                <transformer
+                                        implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>module-info.class</exclude>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--
+              Bakes ${botmaker.studioapi.version} and ${botmaker.pluginhost.version} into the pom that is
+              installed and published. Without it a -D on the command line changes what THIS build resolves
+              and nothing about what the registry's CI sees when it resolves this module as a library — the
+              shape of the 0.0.0-SNAPSHOT bug that shipped in every SDK up to v1.0.24.
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.6.0</version>
+                <configuration>
+                    <flattenMode>oss</flattenMode>
+                    <pomElements>
+                        <repositories>keep</repositories>
+                    </pomElements>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>flatten-clean</id>
+                        <phase>clean</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

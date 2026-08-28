@@ -1,0 +1,71 @@
+# JReleaser — what ONE release of this repository looks like.
+#
+# The split with the umbrella's release.sh is the whole design:
+#
+#   * release.sh knows the CONSTELLATION — which of the eleven repositories changed, what each one's next
+#     version is, the order the tags go out in, and which upstream ref each downstream pins. Nothing in
+#     JReleaser can express that: its unit of work is one repository, one version, one release.
+#   * this file knows what a release IS — the tag, the GitHub Release, the notes and the assets on it.
+#
+# THIS ONE HAS ASSETS, WHICH THE OTHER LIBRARY MODULES DO NOT. botmaker-cli is a program before it is a
+# library: `botmaker-cli-all.jar` is what a plugin author downloads and what the JBang catalog resolves, and
+# a GitHub Release with no jar on it would make the README's own install line a lie.
+#
+# WHERE THIS RUNS: this repository's own CI, on a version tag, and nowhere else — .github/workflows/ci.yml,
+# the `release` job. NOT from the umbrella working copy: in a submodule checkout `.git` is a FILE
+# (`gitdir: ../.git/modules/<mod>`) and JReleaser's JGit reports "repository not found", while
+# `--git-root-search` gets past it only by resolving the UMBRELLA repository, which would attach this
+# release to the wrong repo.
+#
+# THE VERSION ARRIVES AS JRELEASER_PROJECT_VERSION, set by the workflow from the tag that triggered it.
+#
+# NOTHING HERE TOUCHES AN ORDINARY BUILD: no Maven plugin, no lifecycle binding, nothing to download.
+
+project:
+  name: botmaker-cli
+  description: The botmaker command — create, validate, run and publish a BotMaker Studio plugin.
+  longDescription: |
+    Four verbs around the plugin platform: `new` generates a project from the archetype, `validate` runs
+    the seven checks the plugin registry runs, `run` builds a plugin into ~/.m2 and opens Studio on a
+    project that uses it without any tag being pushed, and `publish` opens the registry pull request.
+
+    The validator is a library as well as a command, because it has two callers in two repositories — the
+    author and the registry's CI — and a submission that fails for a reason its author could not have seen
+    coming is exactly what the gate exists to prevent.
+  authors:
+    - LiQiyeDev
+  license: CC0-1.0
+  copyright: LiQiyeDev
+  inceptionYear: '2026'
+  links:
+    homepage: https://github.com/LiQiyeDev/botmaker-cli
+  languages:
+    java:
+      groupId: com.github.LiQiyeDev
+      artifactId: botmaker-cli
+      version: '21'
+
+release:
+  github:
+    owner: LiQiyeDev
+    name: botmaker-cli
+    tagName: 'v{{projectVersion}}'
+    releaseName: 'v{{projectVersion}}'
+    # release.sh created and pushed the tag, and that push is what started the workflow running this — so
+    # there is nothing left to tag. The tag stays on the umbrella's side because tag ORDER across the
+    # repositories is the one thing JReleaser has no way to express.
+    skipTag: true
+    overwrite: false
+    update:
+      enabled: false
+    changelog:
+      external: target/jreleaser-changelog.md
+
+files:
+  artifacts:
+    # The path is versioned because that is what shade attaches — there is no <finalName> renaming it — and
+    # the ASSET is not, because the README's install line is
+    # `releases/latest/download/botmaker-cli-all.jar` and a versioned asset makes that URL a 404. The
+    # transform is the one place the two names meet.
+    - path: target/botmaker-cli-{{projectVersion}}-all.jar
+      transform: botmaker-cli-all.jar
