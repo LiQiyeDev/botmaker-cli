@@ -124,7 +124,7 @@ them is `com.botmaker.cli.Subjects`, and that is where Maven lives.
 ## Building
 
 ```bash
-mvn test        # CommandLineTest, PomsTest, PluginValidatorTest, RegistryTest
+mvn test        # CommandLineTest, PomsTest, PluginValidatorTest, RegistryTest, BundledTest
 mvn install     # com.github.LiQiyeDev:botmaker-cli:0.0.0-SNAPSHOT, plus the -all jar
 java -jar target/botmaker-cli-0.0.0-SNAPSHOT-all.jar --help
 ```

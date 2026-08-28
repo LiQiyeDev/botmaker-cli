@@ -44,16 +44,28 @@ something else. Add an option by adding a field; there is nowhere else to say it
 lives here for the same reason the validator is a library: **it must be the code the author already ran.**
 The registry's workflow resolves this module's *main* artifact and calls the gate; everything the gate adds
 on top of `botmaker validate` is what only the registry knows — the ids every other entry claims
-(`Registry.claimedValueTypeIds`, which fills the `PluginSubject` parameter a local run always leaves empty)
-and the rule that `index.json` is generated. A check belongs in `PluginValidator`, never here.
+(`Registry.claimedValueTypeIds`, which fills the `PluginSubject` parameter a local run always leaves empty),
+the ids the **host's own bundled plugins** own (`Bundled`), and the rule that `index.json` is generated. A
+check belongs in `PluginValidator`, never here.
+
+**`Bundled` closes a hole the per-entry layout cannot close by itself.** `plugins/<id>.json` makes
+entry-vs-entry uniqueness a property of git, but a plugin the host *ships* has no entry file — so
+`com.botmaker.sdk` and the SDK's seventeen value type ids were claimed by nobody, and a submission taking one
+passed every check and then lost silently in `ValueCatalog.merge`. The gate resolves the coordinates named by
+`BOTMAKER_BUNDLED_PLUGINS` and asks the plugins themselves; a hand-kept list of ids here would be a second
+answer to a question the SDK already answers, and would drift the first time a type was added. Two details
+that are not decoration: the coordinates are resolved onto **one** classpath (`Subjects.fromCoordinates`),
+because the SDK's toolkit dependency is `optional` and therefore not transitive and `SdkPlugin` cannot be
+constructed without it; and a bundled id is **never** excluded by the submitting entry's own id, where a
+registry id is — re-submitting your own plugin is an update, taking the host's is not.
 
 It parses two positional arguments by reading an array, and that is not laziness: picocli is `optional`
 precisely so a library consumer resolves no parser, and a gate that needed one would undo it. Changed paths
 arrive as `@file` because a pull request chooses its own filenames — a path interpolated into a workflow's
 `run:` line is a command injection.
 
-`Subjects` and `Mvn` are public for this one caller, and only `fromCoordinate` is: a working copy is the
-author's question, and the registry has none. `Console.reportAside` exists because `botmaker publish`'s
+`Subjects` and `Mvn` are public for this one caller, and only `fromCoordinate`/`fromCoordinates` are: a
+working copy is the author's question, and the registry has none. `Console.reportAside` exists because `botmaker publish`'s
 stdout is the entry JSON — `--dry-run > plugins/<id>.json` has to be a file a parser will read, which is the
 same stdout/stderr rule `Console` opens with.
 

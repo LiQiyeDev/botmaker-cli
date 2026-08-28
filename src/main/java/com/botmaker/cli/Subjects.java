@@ -78,14 +78,41 @@ public final class Subjects {
     public PluginSubject fromCoordinate(String coordinate, Set<String> claimedIds,
                                         Set<String> claimedValueTypeIds)
             throws IOException {
-        String[] parts = coordinate.split(":");
-        if (parts.length != 3) {
-            throw new IOException("expected a coordinate of the form groupId:artifactId:version, got '"
-                    + coordinate + "'");
+        return fromCoordinates(List.of(coordinate), claimedIds, claimedValueTypeIds);
+    }
+
+    /**
+     * Several coordinates on <b>one</b> classpath, which is what a host's own bundled set is.
+     *
+     * <p>Needed because a plugin's dependency may be {@code optional} and therefore not transitive: the SDK
+     * declares {@code botmaker-plugin-toolkit} that way, so resolving {@code botmaker-sdk} alone yields a
+     * classpath its own plugin cannot be constructed from. Whoever puts a plugin on a classpath supplies
+     * what that plugin needs — Studio does it with a {@code runtime} dependency, and this does it by naming
+     * both coordinates.
+     *
+     * <p>The first coordinate is the subject: its version is the pin {@code catalog(pin)} is asked about,
+     * and its published pom is the one the scope check reads.
+     */
+    public PluginSubject fromCoordinates(List<String> coordinates, Set<String> claimedIds,
+                                         Set<String> claimedValueTypeIds)
+            throws IOException {
+        if (coordinates.isEmpty()) {
+            throw new IOException("no coordinate to resolve");
         }
+        List<String[]> split = new ArrayList<>();
+        for (String coordinate : coordinates) {
+            String[] parts = coordinate.split(":");
+            if (parts.length != 3) {
+                throw new IOException("expected a coordinate of the form groupId:artifactId:version, got '"
+                        + coordinate + "'");
+            }
+            split.add(parts);
+        }
+        String coordinate = String.join(" + ", coordinates);
+        String[] parts = split.getFirst();
         Path work = Files.createTempDirectory("botmaker-validate");
         Path pom = work.resolve("pom.xml");
-        Files.writeString(pom, resolverPom(parts[0], parts[1], parts[2]));
+        Files.writeString(pom, resolverPom(split));
 
         console.step("Resolving " + coordinate + "…");
         List<Path> classpath = new ArrayList<>(runtimeClasspath(work, pom));
@@ -94,7 +121,7 @@ public final class Subjects {
         }
 
         Mvn.Result copied = mvn.run(work, "-q", "dependency:copy",
-                "-Dartifact=" + coordinate + ":pom", "-DoutputDirectory=" + work);
+                "-Dartifact=" + String.join(":", parts) + ":pom", "-DoutputDirectory=" + work);
         Path published = work.resolve(parts[1] + "-" + parts[2] + ".pom");
         if (!copied.ok() || !Files.isRegularFile(published)) {
             console.warn("could not fetch the published pom for " + coordinate
@@ -158,7 +185,17 @@ public final class Subjects {
      * <p>JitPack is declared because that is where every BotMaker coordinate lives and where a plugin built
      * from a GitHub tag will live too. Central needs no declaration.
      */
-    private static String resolverPom(String group, String artifact, String version) {
+    private static String resolverPom(List<String[]> coordinates) {
+        StringBuilder dependencies = new StringBuilder();
+        for (String[] parts : coordinates) {
+            dependencies.append("""
+                                <dependency>
+                                    <groupId>%s</groupId>
+                                    <artifactId>%s</artifactId>
+                                    <version>%s</version>
+                                </dependency>
+                    """.formatted(parts[0], parts[1], parts[2]));
+        }
         return """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0">
@@ -174,13 +211,8 @@ public final class Subjects {
                         </repository>
                     </repositories>
                     <dependencies>
-                        <dependency>
-                            <groupId>%s</groupId>
-                            <artifactId>%s</artifactId>
-                            <version>%s</version>
-                        </dependency>
-                    </dependencies>
+                %s    </dependencies>
                 </project>
-                """.formatted(group, artifact, version);
+                """.formatted(dependencies);
     }
 }

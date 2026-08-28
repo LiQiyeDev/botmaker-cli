@@ -45,6 +45,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   reason the validator is a library at all: it has to be the code the author already ran. It parses two
   positional arguments by hand rather than with picocli, and reads attacker-chosen paths from a file rather
   than from a shell command line.
+- **The gate also reserves the ids the host's own plugins own** (`Bundled`, `BOTMAKER_BUNDLED_PLUGINS`).
+  A plugin the host *ships* has no entry file, so `com.botmaker.sdk` and the SDK's seventeen value type ids
+  were claimed by nobody: a submission taking one passed every check and then lost silently inside
+  `ValueCatalog.merge`. The gate resolves the named coordinates and asks the plugins for their ids rather
+  than carrying a list that would drift. `Subjects.fromCoordinates` resolves several coordinates onto **one**
+  classpath, which is what a host has — the SDK's toolkit dependency is `optional` and so not transitive, and
+  `SdkPlugin` cannot be constructed without it.
 - **`botmaker publish --dry-run` prints the entry on stdout and nothing else**, so it can be redirected into
   the entry file when `gh` is not installed. The report moved to stderr, which is the rule `Console` already
   stated and this command was breaking.

@@ -247,7 +247,8 @@ public final class PluginValidator {
                 registered.add(id);
                 if (subject.claimedValueTypeIds().contains(id)) {
                     problems.add(safeId(plugin) + ": value type id '" + id
-                            + "' is already registered by a plugin in the registry; prefix yours");
+                            + "' is already registered by another plugin — a registry entry, or one the"
+                            + " host itself ships; prefix yours");
                 }
                 // NOT checked here: whether the id is prefixed. The contract asks an author to "prefix an
                 // id that is not obviously yours" and that is advice, not a rule anything can enforce —

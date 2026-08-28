@@ -20,7 +20,8 @@ import java.util.List;
  * coming is the experience the whole gate exists to prevent, so the registry's workflow resolves this
  * module's <em>main</em> artifact — the library, with no picocli in it — and calls this class. Everything it
  * adds on top of {@code botmaker validate} is what only the registry knows: the ids every other entry
- * already claims, and the rule that {@code index.json} is generated.
+ * already claims, the ids the host's bundled plugins own ({@link Bundled}), and the rule that
+ * {@code index.json} is generated.
  *
  * <p><b>No command-line library, deliberately.</b> Two positional arguments, parsed by reading an array:
  * picocli is {@code optional} in this module precisely so a consumer resolving it as a library does not
@@ -90,6 +91,22 @@ public final class RegistryGate {
         }
 
         Subjects subjects = new Subjects(console, new Mvn(console));
+        Bundled bundled;
+        String coordinates = System.getenv(Bundled.ENVIRONMENT_VARIABLE);
+        if (coordinates == null || coordinates.isBlank()) {
+            console.warn(Bundled.ENVIRONMENT_VARIABLE + " is not set, so the ids the host's own bundled"
+                    + " plugins own are NOT reserved. Set it to the bundled coordinates, comma separated.");
+            bundled = Bundled.none();
+        } else {
+            try {
+                bundled = Bundled.resolve(console, subjects, coordinates);
+            } catch (IOException e) {
+                console.error("could not read the bundled plugins named by " + Bundled.ENVIRONMENT_VARIABLE
+                        + ": " + e.getMessage());
+                return 1;
+            }
+        }
+
         int failures = 0;
         for (String path : entryPaths) {
             Path file = root.resolve(path);
@@ -101,7 +118,7 @@ public final class RegistryGate {
             }
             console.out("");
             console.out("── " + path);
-            failures += validate(console, subjects, registry, file) ? 0 : 1;
+            failures += validate(console, subjects, registry, bundled, file) ? 0 : 1;
         }
 
         console.out("");
@@ -124,7 +141,8 @@ public final class RegistryGate {
         return args;
     }
 
-    private static boolean validate(Console console, Subjects subjects, Registry registry, Path file) {
+    private static boolean validate(Console console, Subjects subjects, Registry registry, Bundled bundled,
+                                    Path file) {
         Registry.Entry submitted;
         try {
             submitted = new Registry.Entry(file,
@@ -154,9 +172,11 @@ public final class RegistryGate {
         String coordinate = entry.coordinate() + ":" + entry.verifiedVersion();
         PluginSubject subject;
         try {
+            // The bundled ids are unioned in and are never excluded by `except`: an entry claiming a host's
+            // own plugin id must be refused, where an entry re-claiming its own id is an update.
             subject = subjects.fromCoordinate(coordinate,
-                    registry.claimedPluginIds(entry.id()),
-                    registry.claimedValueTypeIds(entry.id()));
+                    Bundled.union(registry.claimedPluginIds(entry.id()), bundled.pluginIds()),
+                    Bundled.union(registry.claimedValueTypeIds(entry.id()), bundled.valueTypeIds()));
         } catch (IOException e) {
             console.error("could not resolve " + coordinate + ": " + e.getMessage());
             return false;
