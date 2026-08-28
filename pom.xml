@@ -40,6 +40,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>5.10.2</junit.version>
         <jackson.version>2.17.2</jackson.version>
+        <picocli.version>4.7.6</picocli.version>
         <!--
           Only to compile against SlotEditor, whose create() returns javafx.scene.Node. `provided`, so no
           JavaFX is shaded and the executable jar stays one file for every OS. See the EDITORS check in
@@ -82,6 +83,28 @@
             <groupId>com.github.LiQiyeDev</groupId>
             <artifactId>botmaker-studio-api</artifactId>
             <version>${botmaker.studioapi.version}</version>
+        </dependency>
+
+        <!--
+          The command line, and OPTIONAL is the load-bearing word.
+
+          `optional` means "not transitive": the shaded `all` jar still carries picocli, because an optional
+          dependency is on this project's own runtime classpath and that is what shade packages — while the
+          plugin registry's CI, which resolves the MAIN artifact as a library to call PluginValidator, does
+          not download it. That makes the module's one structural rule true of the dependency graph and not
+          only of the source: com.botmaker.cli.validate prints nothing, spawns nothing, knows no command
+          line, and now cannot even see the class that would parse one.
+
+          It replaced a hand-rolled parser, a usage text written as a Java text block and a table listing
+          every option each verb accepts. Those were three statements of one fact, and they had already
+          disagreed: the first real `botmaker new` passed an option that did not exist, which was silently
+          ignored and generated a project pinned to something else.
+        -->
+        <dependency>
+            <groupId>info.picocli</groupId>
+            <artifactId>picocli</artifactId>
+            <version>${picocli.version}</version>
+            <optional>true</optional>
         </dependency>
 
         <!-- index.json, and the entry `botmaker publish` composes. -->

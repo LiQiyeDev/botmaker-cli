@@ -10,6 +10,9 @@ import com.botmaker.plugin.api.value.ValueType;
 import com.botmaker.plugin.host.PluginLoader;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ParentCommand;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,6 +20,7 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 /**
  * {@code botmaker publish} — validate, then compose the registry entry and open the pull request.
@@ -31,22 +35,52 @@ import java.util.List;
  * library rather than a command: the check that refuses the pull request is the check that refused to open
  * it.
  */
-final class PublishCommand {
+@Command(name = "publish",
+        header = "Validate, then open the registry pull request.",
+        description = "Almost every field of an entry is something the plugin already says about itself; "
+                + "what is genuinely yours — the repository, the description, the tags — is asked for here.",
+        mixinStandardHelpOptions = true)
+final class PublishCommand implements Callable<Integer> {
 
     private static final String REGISTRY_REPO = "LiQiyeDev/botmaker-plugin-registry";
     private static final String INDEX = "index.json";
 
-    private final Console console;
-    private final Subjects subjects;
+    @ParentCommand
+    private Main parent;
 
-    PublishCommand(Console console, Subjects subjects) {
-        this.console = console;
-        this.subjects = subjects;
-    }
+    @Option(names = "--dir", defaultValue = ".",
+            description = "The plugin project. Default: ${DEFAULT-VALUE}")
+    private String directory;
 
-    int run(Args args) throws IOException {
-        Path dir = Path.of(args.value("dir", ".")).toAbsolutePath().normalize();
-        PluginSubject subject = subjects.fromDirectory(dir, !args.flag("no-build"));
+    @Option(names = "--repo", paramLabel = "<owner/name>",
+            description = "Where the plugin's source lives. Required for a real run; without it this is a "
+                    + "dry run, because an entry needs somewhere for a reader to go and look.")
+    private String repo;
+
+    @Option(names = "--name", description = "Overrides the plugin's own displayName.")
+    private String displayName;
+
+    @Option(names = "--description", defaultValue = "", description = "One sentence, for the index.")
+    private String description;
+
+    @Option(names = "--tags", defaultValue = "", paramLabel = "<a,b,c>", description = "Comma separated.")
+    private String tags;
+
+    @Option(names = "--min-contract-version", paramLabel = "<version>",
+            description = "Default: the botmaker-studio-api version this pom declares.")
+    private String minContractVersion;
+
+    @Option(names = "--dry-run", description = "Print the index entry and open nothing.")
+    private boolean dryRun;
+
+    @Option(names = "--no-build", description = "Trust the existing target/classes.")
+    private boolean noBuild;
+
+    @Override
+    public Integer call() throws IOException {
+        Console console = parent.console();
+        Path dir = Path.of(directory).toAbsolutePath().normalize();
+        PluginSubject subject = parent.subjects().fromDirectory(dir, !noBuild);
 
         List<CheckResult> results = PluginValidator.validate(subject);
         console.report(results);
@@ -57,11 +91,11 @@ final class PublishCommand {
             return 1;
         }
 
-        RegistryEntry entry = compose(args, subject);
+        RegistryEntry entry = compose(subject);
         String json = mapper().writerWithDefaultPrettyPrinter().writeValueAsString(entry);
 
-        if (args.flag("dry-run") || !args.has("repo")) {
-            if (!args.has("repo")) {
+        if (dryRun || repo == null) {
+            if (repo == null) {
                 console.warn("--repo <owner/name> was not given, so this is a dry run: the registry entry"
                         + " needs somewhere for a reader to go and look at the source.");
             }
@@ -72,7 +106,8 @@ final class PublishCommand {
         return openPullRequest(entry, json);
     }
 
-    private RegistryEntry compose(Args args, PluginSubject subject) throws IOException {
+    private RegistryEntry compose(PluginSubject subject) throws IOException {
+        Console console = parent.console();
         String id = "";
         String name = "";
         List<String> valueTypeIds = new ArrayList<>();
@@ -102,12 +137,12 @@ final class PublishCommand {
 
         return new RegistryEntry(
                 id,
-                args.value("name", name),
+                displayName != null ? displayName : name,
                 self.groupId() + ":" + self.artifactId(),
-                args.value("repo", null),
-                args.value("description", ""),
-                List.of(args.value("tags", "").split("\\s*,\\s*")).stream().filter(t -> !t.isBlank()).toList(),
-                args.value("min-contract-version", contractVersion),
+                repo,
+                description,
+                List.of(tags.split("\\s*,\\s*")).stream().filter(t -> !t.isBlank()).toList(),
+                minContractVersion != null ? minContractVersion : contractVersion,
                 valueTypeIds,
                 LocalDate.now().toString());
     }
@@ -120,6 +155,7 @@ final class PublishCommand {
      * program has no business holding.
      */
     private int openPullRequest(RegistryEntry entry, String json) throws IOException {
+        Console console = parent.console();
         Path work = Files.createTempDirectory("botmaker-publish");
         Path clone = work.resolve("registry");
         if (gh(work, "repo", "fork", REGISTRY_REPO, "--clone=true", "--remote=false",
@@ -183,7 +219,7 @@ final class PublishCommand {
     }
 
     private int run(Path dir, String... argv) throws IOException {
-        console.step("$ " + String.join(" ", argv));
+        parent.console().step("$ " + String.join(" ", argv));
         try {
             return new ProcessBuilder(argv).directory(dir.toFile()).inheritIO().start().waitFor();
         } catch (InterruptedException e) {

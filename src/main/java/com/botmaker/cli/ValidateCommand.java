@@ -4,11 +4,16 @@ import com.botmaker.cli.validate.CheckResult;
 import com.botmaker.cli.validate.PluginSubject;
 import com.botmaker.cli.validate.PluginValidator;
 import com.botmaker.cli.validate.Status;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ParentCommand;
+import picocli.CommandLine.Parameters;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Callable;
 
 /**
  * {@code botmaker validate} — the seven checks, against a working copy or a published coordinate.
@@ -18,25 +23,41 @@ import java.util.Set;
  * library, because the registry's CI calls the library directly and a rule implemented here would be a rule
  * the author sees and the gate does not.
  */
-final class ValidateCommand {
+@Command(name = "validate",
+        header = "Run the seven checks the plugin registry runs.",
+        description = "A local pass is not a promise the pull request passes: two checks ask whether an id "
+                + "is already claimed, and only the registry's index holds those answers.",
+        mixinStandardHelpOptions = true)
+final class ValidateCommand implements Callable<Integer> {
 
-    private final Console console;
-    private final Subjects subjects;
+    @ParentCommand
+    private Main parent;
 
-    ValidateCommand(Console console, Subjects subjects) {
-        this.console = console;
-        this.subjects = subjects;
-    }
+    @Parameters(index = "0", arity = "0..1", paramLabel = "<dir>",
+            description = "The plugin project. Default: the working directory")
+    private String dirArgument;
 
-    int run(Args args) throws IOException {
+    @Option(names = "--dir", description = "The plugin project, as an option rather than a position")
+    private String dirOption;
+
+    @Option(names = "--coordinate", paramLabel = "<G:A:V>",
+            description = "Validate a PUBLISHED artifact instead of a working copy. The one that catches a "
+                    + "plugin which builds on your machine and publishes a pom nobody else can resolve.")
+    private String coordinate;
+
+    @Option(names = "--no-build", description = "Trust the existing target/classes.")
+    private boolean noBuild;
+
+    @Override
+    public Integer call() throws IOException {
+        Console console = parent.console();
         PluginSubject subject;
-        String coordinate = args.value("coordinate", null);
         if (coordinate != null) {
-            subject = subjects.fromCoordinate(coordinate, Set.of(), Set.of());
+            subject = parent.subjects().fromCoordinate(coordinate, Set.of(), Set.of());
         } else {
-            Path dir = Path.of(args.at(1) == null ? args.value("dir", ".") : args.at(1))
-                    .toAbsolutePath().normalize();
-            subject = subjects.fromDirectory(dir, !args.flag("no-build"));
+            String directory = dirArgument != null ? dirArgument : dirOption != null ? dirOption : ".";
+            subject = parent.subjects()
+                    .fromDirectory(Path.of(directory).toAbsolutePath().normalize(), !noBuild);
         }
 
         List<CheckResult> results = PluginValidator.validate(subject);

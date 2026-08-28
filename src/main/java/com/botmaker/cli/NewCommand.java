@@ -1,10 +1,16 @@
 package com.botmaker.cli;
 
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ParentCommand;
+import picocli.CommandLine.Parameters;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 /**
  * {@code botmaker new <name>} — the archetype, with the prompts already answered.
@@ -18,7 +24,12 @@ import java.util.List;
  * own coordinate, {@code -DinteractiveMode=false}, and sane values for the four required properties derived
  * from one name.
  */
-final class NewCommand {
+@Command(name = "new",
+        header = "Generate a plugin project from the archetype.",
+        description = "Every value below has a default derived from the artifact id, so the id alone is a "
+                + "working command line.",
+        mixinStandardHelpOptions = true)
+final class NewCommand implements Callable<Integer> {
 
     private static final String ARCHETYPE_GROUP = "com.github.LiQiyeDev";
     private static final String ARCHETYPE_ARTIFACT = "botmaker-plugin-archetype";
@@ -33,32 +44,61 @@ final class NewCommand {
      */
     private static final String DEFAULT_BOTMAKER_VERSION = "main-SNAPSHOT";
 
-    private final Console console;
-    private final Mvn mvn;
+    @ParentCommand
+    private Main parent;
 
-    NewCommand(Console console, Mvn mvn) {
-        this.console = console;
-        this.mvn = mvn;
-    }
+    @Parameters(index = "0", paramLabel = "<artifact-id>",
+            description = "The Maven artifact id, and the directory name. e.g. discord-notifier")
+    private String name;
 
-    int run(Args args) throws IOException {
-        String name = args.at(1);
-        if (name == null || name.isBlank()) {
-            console.error("usage: botmaker new <artifact-id> [--group <groupId>] [--package <package>]"
-                    + " [--archetype-version <v>] [--studio-api <v>] [--toolkit <v>] [--dir <parent>]");
-            return 2;
-        }
-        String group = args.value("group", "com.example");
-        String pkg = args.value("package", group + "." + name.replace("-", "").toLowerCase());
-        String archetypeVersion = args.value("archetype-version", "main-SNAPSHOT");
-        Path parent = Path.of(args.value("dir", ".")).toAbsolutePath().normalize();
-        Path target = parent.resolve(name);
+    @Option(names = "--group", defaultValue = "com.example", description = "groupId. Default: ${DEFAULT-VALUE}")
+    private String group;
+
+    @Option(names = "--package", description = "Java package. Default: <group>.<name with no punctuation>")
+    private String pkg;
+
+    /**
+     * Deliberately not defaulted to the groupId, which is what {@code mvn archetype:generate} does. A plugin
+     * id must be unique across the registry, and a groupId is not: two plugins from one author share it.
+     */
+    @Option(names = "--plugin-id",
+            description = "The StudioPlugin id; must be unique in the registry. Default: <group>.<name>")
+    private String pluginId;
+
+    @Option(names = "--plugin-name", description = "The name a user reads. Default: the artifact id, titled")
+    private String pluginName;
+
+    @Option(names = "--plugin-version", defaultValue = "0.1.0-SNAPSHOT",
+            description = "The generated project's own version. Default: ${DEFAULT-VALUE}")
+    private String pluginVersion;
+
+    @Option(names = "--studio-api", defaultValue = DEFAULT_BOTMAKER_VERSION,
+            description = "botmaker-studio-api version in the generated pom. Default: ${DEFAULT-VALUE}")
+    private String studioApiVersion;
+
+    @Option(names = "--toolkit", defaultValue = DEFAULT_BOTMAKER_VERSION,
+            description = "botmaker-plugin-toolkit version in the generated pom. Default: ${DEFAULT-VALUE}")
+    private String toolkitVersion;
+
+    @Option(names = "--archetype-version", defaultValue = DEFAULT_BOTMAKER_VERSION,
+            description = "The archetype's own version. Default: ${DEFAULT-VALUE}")
+    private String archetypeVersion;
+
+    @Option(names = "--dir", defaultValue = ".", description = "Where to generate. Default: ${DEFAULT-VALUE}")
+    private String directory;
+
+    @Override
+    public Integer call() throws IOException {
+        Console console = parent.console();
+        Path parentDir = Path.of(directory).toAbsolutePath().normalize();
+        Path target = parentDir.resolve(name);
         if (Files.exists(target)) {
             console.error(target + " already exists");
             return 1;
         }
-        Files.createDirectories(parent);
+        Files.createDirectories(parentDir);
 
+        String javaPackage = pkg != null ? pkg : group + "." + name.replace("-", "").toLowerCase();
         List<String> goals = new ArrayList<>(List.of(
                 "archetype:generate",
                 "-DinteractiveMode=false",
@@ -67,18 +107,14 @@ final class NewCommand {
                 "-DarchetypeVersion=" + archetypeVersion,
                 "-DgroupId=" + group,
                 "-DartifactId=" + name,
-                "-Dversion=" + args.value("plugin-version", "0.1.0-SNAPSHOT"),
-                "-Dpackage=" + pkg,
-                // The archetype's four required properties. pluginId defaults to the groupId and
-                // pluginName to the artifactId, which is right for `mvn archetype:generate` typed by hand
-                // and wrong here: a plugin id must be unique across the registry, and the groupId alone
-                // is not (two plugins from one author share it).
-                "-DpluginId=" + args.value("plugin-id", group + "." + name),
-                "-DpluginName=" + args.value("plugin-name", title(name)),
-                "-DstudioApiVersion=" + args.value("studio-api", DEFAULT_BOTMAKER_VERSION),
-                "-DtoolkitVersion=" + args.value("toolkit", DEFAULT_BOTMAKER_VERSION)));
+                "-Dversion=" + pluginVersion,
+                "-Dpackage=" + javaPackage,
+                "-DpluginId=" + (pluginId != null ? pluginId : group + "." + name),
+                "-DpluginName=" + (pluginName != null ? pluginName : title(name)),
+                "-DstudioApiVersion=" + studioApiVersion,
+                "-DtoolkitVersion=" + toolkitVersion));
 
-        Mvn.Result result = mvn.runInteractive(parent, goals.toArray(String[]::new));
+        Mvn.Result result = parent.mvn().runInteractive(parentDir, goals.toArray(String[]::new));
         if (!result.ok()) {
             console.error("mvn archetype:generate failed");
             return 1;

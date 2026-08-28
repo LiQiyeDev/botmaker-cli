@@ -1,12 +1,16 @@
 package com.botmaker.cli;
 
 import com.botmaker.cli.project.Poms;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ParentCommand;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 /**
  * {@code botmaker run} — build the plugin, put it in a bot project, and open Studio on it.
@@ -22,7 +26,12 @@ import java.util.List;
  * knows the whole plugin set can write the file that names them. So this points at a project that already
  * exists, adds one dependency to it, and leaves every other line alone.
  */
-final class RunCommand {
+@Command(name = "run",
+        header = "Build the plugin, add it to a bot project, and open Studio on it.",
+        description = "No tag is pushed and nothing is released: mvn install puts the artifact in ~/.m2, "
+                + "and Maven checks ~/.m2 before JitPack.",
+        mixinStandardHelpOptions = true)
+final class RunCommand implements Callable<Integer> {
 
     /**
      * Where Studio keeps projects. Mirrors {@code studio/config/Constants.PROJECTS_ROOT}.
@@ -35,25 +44,41 @@ final class RunCommand {
     private static final Path PROJECTS_ROOT =
             Path.of(System.getProperty("user.home"), "BotMakerProjects");
 
-    private final Console console;
-    private final Mvn mvn;
+    @ParentCommand
+    private Main parent;
 
-    RunCommand(Console console, Mvn mvn) {
-        this.console = console;
-        this.mvn = mvn;
-    }
+    @Option(names = "--dir", defaultValue = ".",
+            description = "The plugin project. Default: ${DEFAULT-VALUE}")
+    private String directory;
 
-    int run(Args args) throws IOException {
-        Path dir = Path.of(args.value("dir", ".")).toAbsolutePath().normalize();
+    @Option(names = "--project", paramLabel = "<name>",
+            description = "A project under ~/BotMakerProjects to add the plugin to.")
+    private String projectName;
+
+    @Option(names = "--studio", paramLabel = "<command>",
+            description = "How to launch Studio. Or set $BOTMAKER_STUDIO.")
+    private String studioCommand;
+
+    @Option(names = "--umbrella", paramLabel = "<dir>",
+            description = "A BotMaker umbrella checkout, launched with javafx:run. Or $BOTMAKER_UMBRELLA.")
+    private String umbrella;
+
+    @Option(names = "--no-build", description = "Skip `mvn install`.")
+    private boolean noBuild;
+
+    @Override
+    public Integer call() throws IOException {
+        Console console = parent.console();
+        Path dir = Path.of(directory).toAbsolutePath().normalize();
         Path pluginPom = dir.resolve("pom.xml");
         if (!Files.isRegularFile(pluginPom)) {
             console.error("no pom.xml in " + dir + " — run this from a plugin project, or pass --dir");
             return 2;
         }
 
-        if (!args.flag("no-build")) {
+        if (!noBuild) {
             console.step("Installing the plugin into ~/.m2…");
-            Mvn.Result installed = mvn.runInteractive(dir, "install", "-DskipTests");
+            Mvn.Result installed = parent.mvn().runInteractive(dir, "install", "-DskipTests");
             if (!installed.ok()) {
                 console.error("the plugin did not build");
                 return 1;
@@ -63,7 +88,6 @@ final class RunCommand {
         Poms.Dependency plugin = Poms.coordinate(pluginPom);
         console.step("Plugin: " + plugin.groupId() + ":" + plugin.artifactId() + ":" + plugin.version());
 
-        String projectName = args.value("project", null);
         if (projectName != null) {
             int added = addToProject(projectName, plugin);
             if (added != 0) {
@@ -74,7 +98,7 @@ final class RunCommand {
                     + " add it through Project ▸ Manage Libraries, or re-run with --project <name>.");
         }
 
-        return launchStudio(args, projectName);
+        return launchStudio();
     }
 
     /**
@@ -84,6 +108,7 @@ final class RunCommand {
      * a project Studio believes has changed every time.
      */
     private int addToProject(String projectName, Poms.Dependency plugin) throws IOException {
+        Console console = parent.console();
         Path project = PROJECTS_ROOT.resolve(projectName);
         Path pom = project.resolve("pom.xml");
         if (!Files.isRegularFile(pom)) {
@@ -106,20 +131,21 @@ final class RunCommand {
      * {@code $BOTMAKER_STUDIO} is the same thing set once, and {@code --umbrella} is the developer's case —
      * an umbrella checkout, run through {@code javafx:run} exactly as {@code CLAUDE.md} documents it.
      */
-    private int launchStudio(Args args, String projectName) throws IOException {
+    private int launchStudio() throws IOException {
+        Console console = parent.console();
         String projectArg = projectName == null ? null : "--project=" + projectName;
 
-        String umbrella = args.value("umbrella", System.getenv("BOTMAKER_UMBRELLA"));
-        if (umbrella != null && !umbrella.isBlank()) {
+        String checkout = umbrella != null ? umbrella : System.getenv("BOTMAKER_UMBRELLA");
+        if (checkout != null && !checkout.isBlank()) {
             List<String> goals = new ArrayList<>(List.of("-pl", "botmaker-studio", "-am", "javafx:run"));
             if (projectArg != null) {
                 goals.add("-Djavafx.args=" + projectArg);
             }
-            Mvn.Result result = mvn.runInteractive(Path.of(umbrella), goals.toArray(String[]::new));
+            Mvn.Result result = parent.mvn().runInteractive(Path.of(checkout), goals.toArray(String[]::new));
             return result.ok() ? 0 : 1;
         }
 
-        String command = args.value("studio", System.getenv("BOTMAKER_STUDIO"));
+        String command = studioCommand != null ? studioCommand : System.getenv("BOTMAKER_STUDIO");
         if (command == null || command.isBlank()) {
             console.warn("no Studio to launch. Pass --studio <command>, set BOTMAKER_STUDIO, or point"
                     + " --umbrella at a BotMaker umbrella checkout. The plugin is installed either way.");

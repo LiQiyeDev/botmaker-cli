@@ -26,6 +26,18 @@ The shade plugin therefore uses `shadedArtifactAttached` rather than replacing t
 `createDependencyReducedPom=false` because this module also flattens, and two plugins rewriting one pom is a
 race with no winner.
 
+**picocli is declared `optional`, and that word is doing structural work.** `optional` means *not
+transitive*: the shaded `all` jar carries picocli (an optional dependency is on this project's own runtime
+classpath, which is what shade packages) and a consumer resolving the main artifact does not — checked with
+`dependency:tree` from a throwaway consumer, which lists plugin-host, studio-api and jackson and no picocli.
+So the rule above stops being a discipline and becomes a fact about the graph: the registry's CI cannot
+accidentally depend on a parser, and `com.botmaker.cli.validate` cannot name one.
+
+It replaced a hand-rolled `Args`, a usage text written as a Java text block and a table naming every option
+each verb accepts — **three statements of one fact, which had already disagreed**: the first real
+`botmaker new` passed `--botmaker-version`, which was silently ignored and generated a project pinned to
+something else. Add an option by adding a field; there is nowhere else to say it.
+
 ## Why there is no JavaFX in it
 
 `SlotEditor.create` returns `javafx.scene.Node`, so `javafx-controls` is on the **compile** classpath at
@@ -84,7 +96,7 @@ same phase as this module.
 ## Building
 
 ```bash
-mvn test        # ArgsTest, PomsTest, PluginValidatorTest
+mvn test        # CommandLineTest, PomsTest, PluginValidatorTest
 mvn install     # the library and the -all jar
 ```
 

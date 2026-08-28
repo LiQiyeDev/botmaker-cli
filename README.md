@@ -28,6 +28,10 @@ java -jar botmaker-cli-all.jar validate
 Maven is required and is not bundled: this tool resolves what your own Maven resolves, using your own
 settings, because the alternative is a tool that answers a different question from the one your build asks.
 
+**`botmaker --help` and `botmaker <verb> --help` are the reference.** Every option below is described there
+too, and there it is generated from the same fields that parse it — so where this file and `--help` ever
+disagree, `--help` is right.
+
 ## The four verbs
 
 ### `botmaker new <artifact-id>`
@@ -113,7 +117,7 @@ them is `com.botmaker.cli.Subjects`, and that is where Maven lives.
 ## Building
 
 ```bash
-mvn test        # ArgsTest, PomsTest, PluginValidatorTest
+mvn test        # CommandLineTest, PomsTest, PluginValidatorTest
 mvn install     # com.github.LiQiyeDev:botmaker-cli:0.0.0-SNAPSHOT, plus the -all jar
 java -jar target/botmaker-cli-0.0.0-SNAPSHOT-all.jar --help
 ```

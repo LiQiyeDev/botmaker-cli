@@ -33,6 +33,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **`botmaker publish`** — validates, composes the registry entry from what the plugin already says about
   itself, and opens the pull request with `gh`. `--dry-run` prints the entry and opens nothing. The author
   never hand-edits `index.json`.
+- **The command line is picocli, and the dependency is `optional`.** `--help` is generated from the same
+  annotated fields that parse, so it cannot fall behind them, and an option nobody declared is refused with
+  a suggestion instead of ignored. `optional` means it is not transitive: the executable jar carries it and
+  the plugin registry, which resolves the main artifact as a *library*, does not — so the rule that
+  `com.botmaker.cli.validate` knows no command line is now true of the dependency graph as well as of the
+  source.
 
 ### Deliberately absent
 
