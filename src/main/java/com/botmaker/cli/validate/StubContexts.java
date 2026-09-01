@@ -1,6 +1,5 @@
 package com.botmaker.cli.validate;
 
-import com.botmaker.plugin.api.Capture;
 import com.botmaker.plugin.api.Dialogs;
 import com.botmaker.plugin.api.SlotContext;
 import com.botmaker.plugin.api.StudioServices;
@@ -145,10 +144,11 @@ final class StubContexts {
             throw unsupported("theme()");
         }
 
-        @Override
-        public Capture capture() {
-            throw unsupported("capture()");
-        }
+        // capture() was stubbed here until 2026-09-01. StudioServices.capture() and the whole Capture
+        // interface were deleted from the contract on 2026-08-27, in the reversal that also took Assets and
+        // SourceChoice: they were the host carrying the SDK's own vocabulary — what a capture source is
+        // belongs to whoever owns CaptureSource, and botmaker-shared is published, so a plugin that wants
+        // pixels asks it directly. A stub of a member the contract no longer declares is dead weight.
 
         @Override
         public Dialogs dialogs() {
