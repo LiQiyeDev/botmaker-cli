@@ -1,5 +1,15 @@
 # botmaker-cli — roadmap
 
+## Done
+
+### 2026-09-02 — JDK 25 LTS
+
+`jitpack.yml` → `openjdk25`, the pom to `maven.compiler.release` 25, `javafx.version` → 25.0.4 (still
+compile-only — nothing here constructs a `Node`), CI to `java-version: '25'`. The plugin registry's
+`validate.yml` moved with it, in its own repository: it resolves this module's main artifact and runs the
+validator, so it must never be older than this module's bytecode. Full account in
+`../botmaker-studio-api/ROADMAP.md`, dated the same day.
+
 ## Now
 
 The four verbs exist and `validate` is a library. What is unproven is the half that needs the other two

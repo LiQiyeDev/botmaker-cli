@@ -40,7 +40,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '25'
           cache: maven
 
       # RETRIED — Maven Central answers 429 Too Many Requests to GitHub-hosted runners often enough to have
@@ -87,7 +87,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '25'
           cache: maven
 
       # The asset. Unlike the other library repos, this release carries a file, so the jar has to exist

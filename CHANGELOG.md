@@ -7,6 +7,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- **Compiled for Java 25 (LTS).** The executable `botmaker-cli-all.jar` needs a Java 25 runtime, and so does
+  the plugin registry's CI, which resolves the main artifact and calls the validator.
+
 ### Fixed
 
 - **The executable jar is attached to the release again.** `v0.0.1` published no asset: `jreleaser.yml`
