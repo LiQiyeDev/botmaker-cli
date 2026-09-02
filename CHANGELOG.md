@@ -5,6 +5,18 @@ All notable changes to `botmaker-cli`.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this module uses
 [semantic versioning](https://semver.org/). `release.sh` refuses to cut a version with no section here.
 
+## [Unreleased]
+
+### Fixed
+
+- **The executable jar is attached to the release again.** `v0.0.1` published no asset: `jreleaser.yml`
+  looked for `target/botmaker-cli-{{projectVersion}}-all.jar`, and shade names the jar after the *pom's*
+  version — the cosmetic `0.0.0-SNAPSHOT` that JitPack overrides with the tag — so the path it resolved to,
+  `target/botmaker-cli-0.0.1-all.jar`, never existed. The README's
+  `releases/latest/download/botmaker-cli-all.jar` install line was a 404 for the whole of `v0.0.1`. The
+  workflow now renames the shaded jar to that stable name before JReleaser runs, and fails loudly if shade
+  attached nothing, so exactly one name exists from the build onward.
+
 ## [0.0.1] — 2026-09-02
 
 First release. `0.x` because the contract and the loader it is built on are both `0.x`, and a release of

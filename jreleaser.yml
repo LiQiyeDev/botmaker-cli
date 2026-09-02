@@ -63,9 +63,19 @@ release:
 
 files:
   artifacts:
-    # The path is versioned because that is what shade attaches — there is no <finalName> renaming it — and
-    # the ASSET is not, because the README's install line is
-    # `releases/latest/download/botmaker-cli-all.jar` and a versioned asset makes that URL a 404. The
-    # transform is the one place the two names meet.
-    - path: target/botmaker-cli-{{projectVersion}}-all.jar
-      transform: botmaker-cli-all.jar
+    # UNVERSIONED, on both sides, and the workflow renames the jar to this before JReleaser runs.
+    #
+    # This path used to be `target/botmaker-cli-{{projectVersion}}-all.jar` with a `transform:` back to the
+    # unversioned name, on the reasoning that "the path is versioned because that is what shade attaches".
+    # That reasoning is false and it cost the v0.0.1 release its asset: shade names the jar from the POM's
+    # <version>, and this pom's version is the cosmetic 0.0.0-SNAPSHOT that JitPack overrides with the tag
+    # (umbrella CLAUDE.md, *JitPack coordinate model*). `projectVersion` is the RELEASE version, which no
+    # artifact in target/ is ever named after — so JReleaser looked for botmaker-cli-0.0.1-all.jar, found
+    # botmaker-cli-0.0.0-SNAPSHOT-all.jar beside it, and failed with `Path does not exist`.
+    #
+    # The trap is one `<finalName>` away in every other module here, since every one of them carries the
+    # same cosmetic version: never template projectVersion onto a path in target/.
+    #
+    # The name itself is unversioned because the README's install line is
+    # `releases/latest/download/botmaker-cli-all.jar`, which a versioned asset makes a 404.
+    - path: target/botmaker-cli-all.jar

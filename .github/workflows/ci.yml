@@ -43,10 +43,14 @@ jobs:
           java-version: '21'
           cache: maven
 
+      # RETRIED — Maven Central answers 429 Too Many Requests to GitHub-hosted runners often enough to have
+      # failed a release (botmaker-studio, 2026-09-02). See .github/mvn-retry.sh for why the retry cannot be
+      # a Maven flag.
       - name: Install the two upstreams (0.0.0-SNAPSHOT)
         run: |
-          mvn -B -f .deps/botmaker-studio-api/pom.xml install -DskipTests
-          mvn -B -f .deps/botmaker-plugin-host/pom.xml install -DskipTests
+          source .github/mvn-retry.sh
+          mvn_retry mvn -B -f .deps/botmaker-studio-api/pom.xml install -DskipTests
+          mvn_retry mvn -B -f .deps/botmaker-plugin-host/pom.xml install -DskipTests
 
       - name: Build and test
         run: mvn -B verify
@@ -87,12 +91,33 @@ jobs:
           cache: maven
 
       # The asset. Unlike the other library repos, this release carries a file, so the jar has to exist
-      # before JReleaser runs.
+      # before JReleaser runs — under the name jreleaser.yml expects, which is the part that failed on
+      # v0.0.1.
+      #
+      # SHADE NAMES THE JAR FROM THE POM'S <version>, AND THIS POM'S VERSION IS THE COSMETIC
+      # 0.0.0-SNAPSHOT (JitPack overrides a build's own version with the tag; see the umbrella CLAUDE.md).
+      # There is no <finalName> renaming it — deliberately, since finalName renames only the MAIN artifact
+      # and would produce a mismatched pair. So the shaded jar is ALWAYS botmaker-cli-0.0.0-SNAPSHOT-all.jar
+      # whatever the tag says, and jreleaser.yml's asset path used to template the RELEASE version, which
+      # this build never produces: `Path does not exist … resolved: target/botmaker-cli-0.0.1-all.jar`.
+      #
+      # The rename happens HERE rather than in a JReleaser `transform:` so that exactly one name exists
+      # from this point on — the one the README's `releases/latest/download/botmaker-cli-all.jar` names.
+      # The explicit existence test is what turns a shade config that silently stopped attaching the jar
+      # into a red job rather than a release with no asset on it.
       - name: Build the executable jar
         run: |
-          mvn -B -f .deps/botmaker-studio-api/pom.xml install -DskipTests
-          mvn -B -f .deps/botmaker-plugin-host/pom.xml install -DskipTests
-          mvn -B package -DskipTests
+          source .github/mvn-retry.sh
+          mvn_retry mvn -B -f .deps/botmaker-studio-api/pom.xml install -DskipTests
+          mvn_retry mvn -B -f .deps/botmaker-plugin-host/pom.xml install -DskipTests
+          mvn_retry mvn -B package -DskipTests
+          shaded=target/botmaker-cli-0.0.0-SNAPSHOT-all.jar
+          if [ ! -f "$shaded" ]; then
+            echo "::error::$shaded was not produced — maven-shade-plugin attached nothing, or the pom's <version> is no longer 0.0.0-SNAPSHOT. jreleaser.yml expects target/botmaker-cli-all.jar." >&2
+            ls -la target >&2
+            exit 1
+          fi
+          mv "$shaded" target/botmaker-cli-all.jar
 
       # The SAME script release.sh calls to gate this release (check_changelog). One extractor, two readers
       # in two repositories: a release whose notes come from a different rule than the one that gated it can
