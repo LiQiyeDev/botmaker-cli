@@ -5,7 +5,16 @@ All notable changes to `botmaker-cli`.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this module uses
 [semantic versioning](https://semver.org/). `release.sh` refuses to cut a version with no section here.
 
-## [Unreleased]
+## [0.1.0] — 2026-09-02
+
+First release. `0.x` because the contract and the loader it is built on are both `0.x`, and a release of
+either forces a release of this one: flatten bakes both pins into the pom the plugin registry's CI resolves,
+and a gate loading plugins with a different loader than Studio's is a gate that admits plugins Studio then
+refuses.
+
+**Install:** the executable jar is attached to this release as `botmaker-cli-all.jar`, at a stable name, so
+the README's install line can be `releases/latest/download/…`. `com.botmaker.cli.validate` is the **main**
+artifact, resolved as a library — see below for why the two are separate.
 
 ### Added
 
