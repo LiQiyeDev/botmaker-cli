@@ -67,6 +67,23 @@ class CommandLineTest {
         assertTrue(captured.out.startsWith("botmaker "), captured.out);
     }
 
+    /**
+     * The completion script names every verb the command line has. That is the property a checked-in
+     * script cannot hold: this test fails the day somebody adds a subcommand, which is exactly when a
+     * hand-written script would have quietly stopped being complete.
+     */
+    @Test
+    void the_completion_script_offers_every_verb_and_nothing_else() {
+        Captured captured = capture(() -> Main.run(new String[]{"completion"}));
+
+        assertEquals(0, captured.exitCode);
+        assertTrue(captured.out.contains("complete -F _complete_botmaker"), captured.out);
+        for (CommandLine sub : new CommandLine(new Main()).getSubcommands().values()) {
+            assertTrue(captured.out.contains(sub.getCommandName()),
+                    "the script does not mention " + sub.getCommandName() + ":\n" + captured.out);
+        }
+    }
+
     @Test
     void a_missing_artifact_id_is_a_command_line_error_not_a_failure() {
         Captured captured = capture(() -> Main.run(new String[]{"new"}));

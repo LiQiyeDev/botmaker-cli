@@ -43,7 +43,7 @@ import java.util.concurrent.Callable;
         versionProvider = Main.ManifestVersion.class,
         synopsisSubcommandLabel = "<command>",
         subcommands = {NewCommand.class, ValidateCommand.class, RunCommand.class, PublishCommand.class,
-                BotCommand.class})
+                BotCommand.class, CompletionCommand.class})
 public final class Main implements Callable<Integer> {
 
     /**
