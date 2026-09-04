@@ -182,7 +182,14 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.3</version>
+                <!-- Held at 3.5.1 for JitPack, NOT stale: 3.5.2 raised this plugin's own Maven prerequisite
+                     from 3.2.5 to 3.6.3, and JitPack's builder runs Apache Maven 3.6.1 (read off the
+                     v0.0.4 build log). Shade is bound unconditionally here rather than behind a profile,
+                     so `mvn install` on JitPack runs it and a too-new pin fails the whole build before it
+                     publishes the MAIN artifact — the library the plugin registry's CI resolves. The same
+                     3.6.1 ceiling is why maven-compiler-plugin is 3.11.0 and flatten is 1.4.1 across this
+                     project. Do not bump without proving JitPack's mvn version. -->
+                <version>3.5.1</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -232,7 +239,10 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
-                <version>1.6.0</version>
+                <!-- Held at 1.4.1 for JitPack, NOT stale: 1.6.0 declares a Maven 3.6.3 prerequisite and
+                     JitPack's build image runs older than that, so the build fails before it publishes
+                     anything. See botmaker-plugin-toolkit/pom.xml for the full account. -->
+                <version>1.4.1</version>
                 <configuration>
                     <flattenMode>oss</flattenMode>
                     <pomElements>

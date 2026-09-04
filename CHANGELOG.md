@@ -5,6 +5,21 @@ All notable changes to `botmaker-cli`.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this module uses
 [semantic versioning](https://semver.org/). `release.sh` refuses to cut a version with no section here.
 
+## [Unreleased]
+
+### Fixed
+
+- **`0.0.8` failed on JitPack too, and this module carried two of the offending pins.** JitPack's builder
+  runs **Apache Maven 3.6.1**, and Maven refuses to execute a plugin whose `<prerequisites><maven>` exceeds
+  its own version — before publishing anything. `flatten-maven-plugin` 1.6.0 and `maven-shade-plugin` 3.5.3
+  both ask for 3.6.3. Pinned to **1.4.1** and **3.5.1**.
+
+  Shade matters more here than anywhere else: it is bound unconditionally rather than behind a profile, so
+  its failure takes down the **main** artifact — the library `com.botmaker.cli.validate` that the plugin
+  registry's CI resolves to decide a pull request — and not merely the `all` classifier.
+
+  Use `0.0.9`; `0.0.8` was never published.
+
 ## [0.0.8] — 2026-09-04
 
 ### Fixed
