@@ -12,7 +12,8 @@ import java.util.concurrent.Callable;
 /**
  * {@code botmaker} — the entry point.
  *
- * <p>Four verbs, and the shape of the set is the argument for the tool existing at all: {@code new} and
+ * <p>Four verbs about a plugin, and — since 2026-09-04 — one noun about a bot ({@link BotCommand}). The
+ * shape of the verb set is the argument for the tool existing at all: {@code new} and
  * {@code publish} are the two ends of a plugin's life, and {@code validate} and {@code run} are the loop in
  * between. Each of them is something an author can do today by hand — {@code mvn archetype:generate} with
  * eight properties, {@code mvn install} then a pom edit then a Studio launch, a hand-written
@@ -41,7 +42,8 @@ import java.util.concurrent.Callable;
         mixinStandardHelpOptions = true,
         versionProvider = Main.ManifestVersion.class,
         synopsisSubcommandLabel = "<command>",
-        subcommands = {NewCommand.class, ValidateCommand.class, RunCommand.class, PublishCommand.class})
+        subcommands = {NewCommand.class, ValidateCommand.class, RunCommand.class, PublishCommand.class,
+                BotCommand.class})
 public final class Main implements Callable<Integer> {
 
     /**

@@ -1,13 +1,21 @@
 # botmaker-cli
 
-The **`botmaker`** command: everything a BotMaker plugin author does that is not writing the plugin.
+The **`botmaker`** command: everything a BotMaker plugin author does that is not writing the plugin — and,
+under `bot`, everything a bot author does that is not writing the bot.
 
 ```bash
-botmaker new discord-notifier   # generate a project from the archetype
+botmaker new discord-notifier   # generate a plugin project from the archetype
 cd discord-notifier
 botmaker validate               # the seven checks the plugin registry runs
 botmaker run --project MyBot    # build it, add it to a bot, open Studio on the result
 botmaker publish --repo me/discord-notifier
+```
+
+```bash
+botmaker bot new gamebot                     # a blank bot project — no plugin, no SDK
+botmaker bot new farmer --from LiQiyeDev/botmaker-gamebot   # …or somebody's published template
+cd gamebot
+botmaker bot publish --repo me/gamebot --template --description "A game bot to start from"
 ```
 
 ## Installing it
@@ -32,7 +40,7 @@ settings, because the alternative is a tool that answers a different question fr
 too, and there it is generated from the same fields that parse it — so where this file and `--help` ever
 disagree, `--help` is right.
 
-## The four verbs
+## The four verbs — about a plugin
 
 ### `botmaker new <artifact-id>`
 
@@ -103,6 +111,46 @@ requests with no line in common, and a second plugin cannot take an id git alrea
 
 `--dry-run`'s stdout is the entry and nothing else, so `botmaker publish --dry-run > plugins/<id>.json` is
 the by-hand path when `gh` is not installed. The validation report goes to stderr.
+
+## `botmaker bot` — about a bot
+
+The verbs above are all about a plugin. This is the other half, and it is the half that had no command at
+all: a **starting template** is a published bot, so making one meant a repository, a push, a release and a
+hand-written gallery entry, in that order, with nothing failing until somebody else's install 404'd.
+
+### `botmaker bot new <name>`
+
+```bash
+botmaker bot new gamebot                                     # blank
+botmaker bot new farmer --from LiQiyeDev/botmaker-gamebot     # from a published template
+```
+
+**Blank means blank**: a pom, one `main()` that prints a line, and `botmaker-template.properties`. No SDK,
+no plugin, no BotMaker API — that is what a project with no plugins installed looks like, and it is one step
+from being a bot (**Project ▸ Manage Plugins** in Studio). The repositories are declared, so that step needs
+no hand-edited XML.
+
+`--from` downloads that template's release archive and renames **only its package** into yours
+(`--package`, default `com.<name>`). Its entry class keeps the author's name, its helpers keep theirs, its
+javadoc keeps its wording: what they shipped is what demonstrably built for them.
+
+### `botmaker bot publish`
+
+```bash
+botmaker bot publish --repo me/gamebot --template --description "A game bot to start from"
+```
+
+Four steps, each refusing before the next: create the repository and push (a dirty tree is refused; a
+directory that is not a repository yet is initialised and committed), cut the release `--tag` names
+(default `v0.1.0`), **download that release archive** to check an install can actually fetch it, then fork
+`LiQiyeDev/botmaker-gallery`, write `bots/<owner>-<repo>.json` and open the pull request.
+
+`--template` adds the reserved `template` tag, which is what offers the bot in Studio's **New Project**
+rather than as something to install and run. Nothing else about a template is different — so anybody can
+write one, and it needs no Studio release to appear.
+
+`--dry-run` prints the entry on stdout and does nothing else, so
+`botmaker bot publish --dry-run > bots/me-gamebot.json` is the by-hand path when `gh` is not installed.
 
 ## Using `validate` as a library
 

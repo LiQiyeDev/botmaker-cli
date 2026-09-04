@@ -38,6 +38,30 @@ each verb accepts — **three statements of one fact, which had already disagree
 `botmaker new` passed `--botmaker-version`, which was silently ignored and generated a project pinned to
 something else. Add an option by adding a field; there is nowhere else to say it.
 
+## `bot` is a noun, and the duplication under it is deliberate
+
+Four verbs about a **plugin**, one noun about a **bot** (2026-09-04). `botmaker bot new` and `botmaker new`
+are different commands about different things that share an English word, which is why the bot half is a
+noun rather than four more verbs.
+
+`project/BlankProject` re-writes Studio's `MavenService.blankPomXml` + `StarterSources`, and
+`gallery/Templates` re-writes its `TemplateProject`; `gallery/GalleryEntry` mirrors
+`studio/sharing/GalleryEntry` the way `registry/RegistryEntry` mirrors the registry's. **`botmaker-studio` is
+an application, not a library** — depending on it to share forty lines would put JavaFX, OpenCV and JNA
+behind a command whose whole promise is a single jar. The precedent and the standing argument are
+`validate/StubContexts`'s. What the copies must agree on is *files*, not code: the pom shape (which nothing
+maintains after the first commit), and `bots/<owner>-<repo>.json`, which Studio reads.
+
+**`launchTargets` is deliberately missing from this copy of the entry.** Studio reads its absence as *the
+author never said*, and the honest declaration from a command that has run no launcher is silence.
+
+**The blank names no plugin**, which is the platform rule reaching project creation: the SDK is one plugin
+among any number, so a starting point naming it has chosen for the person starting. The repositories stay so
+Manage Plugins can add one without hand-edited XML.
+
+**`bot publish` follows the same rule as `publish`** — the release archive is downloaded before an entry
+points at it. A gallery entry with no release behind it is a 404 on somebody else's machine, days later.
+
 ## What `publish` puts in an entry, and why none of it is the pom's `<version>`
 
 An entry is a set of pointers, and every one of them is followed before the pull request is opened. That is

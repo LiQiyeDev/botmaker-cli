@@ -7,6 +7,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **`botmaker bot` — a second noun, and the half of the platform that had no command.** The four verbs are
+  all about a plugin; a *bot*, and in particular a bot published as a starting **template**, had nothing.
+  Since a blank project names no plugin (2026-09-04), the richer starting point has to be a published bot
+  carrying the `template` tag — and making one meant a repository, a push, a release and a hand-written
+  gallery entry, by hand, with no error until an install 404'd on somebody else's machine.
+  - **`botmaker bot new <name>`** writes a blank project — a pom, one `main()`, and
+    `botmaker-template.properties`. No SDK and no plugin of any kind, which is Studio's own blank shape.
+    `--from <owner/repo>` starts from a published template instead: its release archive is downloaded and
+    **only its package** is renamed, exactly as Studio's `TemplateProject` does it.
+  - **`botmaker bot publish`** creates the repository and pushes, cuts the release, downloads that release
+    archive to prove an install can fetch it, then forks the gallery, writes `bots/<owner>-<repo>.json` and
+    opens the pull request. `--template` adds the reserved tag. `--dry-run` prints the entry and nothing
+    else.
+- **`publish --tag <tag>`** — the published version the registry's gate will resolve. Spelled `--tag`
+  because `--version` is taken by the standard help mixin, and because what JitPack serves under is a tag.
+
 ### Fixed
 
 - **`publish` no longer composes an entry the registry cannot resolve.** The entry's `verifiedVersion` was
@@ -21,11 +39,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   `Subjects.fromCoordinate` — literally the gate's first step — and `--repo` is confirmed with
   `gh repo view`. A coordinate nobody can download and a repository nobody can visit are both refusals now,
   and both cost seconds where finding out in CI costs a round trip.
-
-### Added
-
-- **`publish --tag <tag>`** — the published version the registry's gate will resolve. Spelled `--tag`
-  because `--version` is taken by the standard help mixin, and because what JitPack serves under is a tag.
 
 ## [0.0.2] — 2026-09-02
 

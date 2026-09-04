@@ -47,7 +47,7 @@ class CommandLineTest {
         Captured captured = capture(() -> Main.run(new String[0]));
 
         assertEquals(CommandLine.ExitCode.USAGE, captured.exitCode);
-        for (String verb : new String[]{"new", "validate", "run", "publish"}) {
+        for (String verb : new String[]{"new", "validate", "run", "publish", "bot"}) {
             assertTrue(captured.out.contains(verb), "usage must list " + verb + "; got:\n" + captured.out);
         }
     }
@@ -120,6 +120,25 @@ class CommandLineTest {
     void publish_takes_the_tag_it_will_publish_under() {
         assertEquals("v1.2.0", parse("publish", "--tag", "v1.2.0").subcommand()
                 .matchedOptionValue("--tag", ""));
+    }
+
+    /**
+     * {@code bot} is a noun with two verbs under it, and both parse two levels deep.
+     *
+     * <p>{@code bot new} and {@code new} are different commands about different things — a bot and a plugin
+     * — which is exactly why the bot half is a noun rather than four more verbs.
+     */
+    @Test
+    void bot_has_its_own_new_and_publish() {
+        ParseResult botNew = parse("bot", "new", "gamebot").subcommand().subcommand();
+        assertEquals("gamebot", botNew.matchedPositionalValue(0, ""));
+        assertEquals(".", applied(botNew, "--dir"));
+
+        ParseResult botPublish = parse("bot", "publish", "--template", "--repo", "me/gamebot")
+                .subcommand().subcommand();
+        assertTrue(botPublish.hasMatchedOption("--template"));
+        assertEquals("me/gamebot", botPublish.matchedOptionValue("--repo", ""));
+        assertEquals("v0.1.0", applied(botPublish, "--tag"));
     }
 
     /** The option `botmaker run` passes to Studio as a named JavaFX parameter. */

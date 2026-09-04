@@ -324,18 +324,10 @@ final class PublishCommand implements Callable<Integer> {
     }
 
     private int gh(Path dir, String... args) throws IOException {
-        List<String> argv = new ArrayList<>(List.of("gh"));
-        argv.addAll(List.of(args));
-        return run(dir, argv.toArray(String[]::new));
+        return Shell.gh(parent.console(), dir, args);
     }
 
     private int run(Path dir, String... argv) throws IOException {
-        parent.console().step("$ " + String.join(" ", argv));
-        try {
-            return new ProcessBuilder(argv).directory(dir.toFile()).inheritIO().start().waitFor();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("interrupted while running " + argv[0], e);
-        }
+        return Shell.run(parent.console(), dir, argv);
     }
 }

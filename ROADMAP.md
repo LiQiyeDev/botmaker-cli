@@ -2,6 +2,14 @@
 
 ## Done
 
+### 2026-09-04 — `botmaker bot`, the half of the platform with no command
+
+`bot new` writes the blank project (a pom naming no plugin, one `main`, the template declaration) or
+downloads a published template and renames only its package; `bot publish` does the repository, the push,
+the release, the archive check and the gallery pull request. The blank composer and the repackager are
+deliberate duplicates of Studio's — an application cannot be depended on — and `gallery/GalleryEntry`
+mirrors Studio's for the reason `registry/RegistryEntry` mirrors the registry's.
+
 ### 2026-09-04 — `publish` follows its own pointers
 
 The entry's `verifiedVersion` was the working pom's `<version>` and is now the newest git tag. JitPack

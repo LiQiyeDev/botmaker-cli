@@ -1,0 +1,146 @@
+package com.botmaker.cli.gallery;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Unpacking somebody else's published bot, and the one thing that changes on the way in.
+ *
+ * <p>Nothing here reaches the network: what is worth holding is the <em>rewrite</em> — that a template
+ * arrives as its author shipped it except for its package — plus the zip-slip guard, which is the one place
+ * a downloaded archive gets to choose a path on this machine.
+ */
+class TemplatesTest {
+
+    @TempDir
+    Path root;
+
+    // ---- the rewrite -----------------------------------------------------------------------------------
+
+    @Test
+    void only_the_package_changes_and_every_type_keeps_its_name() throws Exception {
+        Path project = template("com.botmaker.gamebot");
+
+        Templates.repackage(project, "com.myfarmer");
+
+        Path moved = project.resolve("src/main/java/com/myfarmer/GameBot.java");
+        assertTrue(Files.isRegularFile(moved), "the sources move with the package");
+        String source = Files.readString(moved);
+        assertTrue(source.startsWith("package com.myfarmer;"), source);
+        assertTrue(source.contains("class GameBot"), "the author's type name survives:\n" + source);
+        assertTrue(source.contains("new Helper()"), source);
+        assertTrue(Files.isRegularFile(project.resolve("src/main/java/com/myfarmer/Helper.java")));
+        assertFalse(Files.exists(project.resolve("src/main/java/com/botmaker")),
+                "the empty shell directories are pruned");
+    }
+
+    /** The declaration is consumed: the unpacked copy is the user's project, not a template any more. */
+    @Test
+    void the_declaration_file_is_removed() throws Exception {
+        Path project = template("com.botmaker.gamebot");
+
+        Templates.repackage(project, "com.myfarmer");
+
+        assertFalse(Files.exists(project.resolve(Templates.TEMPLATE_FILE)));
+    }
+
+    /** The prefix is replaced in every text file, the pom included — that is what keeps the build valid. */
+    @Test
+    void the_prefix_is_replaced_in_every_text_file() throws Exception {
+        Path project = template("com.botmaker.gamebot");
+
+        Templates.repackage(project, "com.myfarmer");
+
+        assertTrue(Files.readString(project.resolve("pom.xml")).contains("<groupId>com.myfarmer</groupId>"));
+    }
+
+    @Test
+    void a_template_that_declares_a_package_it_does_not_have_is_refused() throws Exception {
+        Path project = template("com.botmaker.gamebot");
+        Files.writeString(project.resolve(Templates.TEMPLATE_FILE), "package=com.somewhere.else\n");
+
+        IOException refused =
+                assertThrows(IOException.class, () -> Templates.repackage(project, "com.myfarmer"));
+        assertTrue(refused.getMessage().contains("com.somewhere.else"), refused.getMessage());
+    }
+
+    @Test
+    void a_template_with_no_declaration_is_refused() throws Exception {
+        Path project = template("com.botmaker.gamebot");
+        Files.delete(project.resolve(Templates.TEMPLATE_FILE));
+
+        assertThrows(IOException.class, () -> Templates.repackage(project, "com.myfarmer"));
+    }
+
+    // ---- the archive -----------------------------------------------------------------------------------
+
+    @Test
+    void the_single_top_level_directory_github_wraps_everything_in_is_stripped() throws Exception {
+        byte[] zip = zip("LiQiyeDev-gamebot-9a1b2c3/pom.xml", "<project/>",
+                "LiQiyeDev-gamebot-9a1b2c3/src/main/java/A.java", "class A {}");
+        Path dest = root.resolve("unpacked");
+
+        Templates.unzipStrippingTopDirectory(zip, dest);
+
+        assertEquals("<project/>", Files.readString(dest.resolve("pom.xml")));
+        assertTrue(Files.isRegularFile(dest.resolve("src/main/java/A.java")));
+    }
+
+    /** An archive is the one input here that gets to name a path on this machine. */
+    @Test
+    void an_entry_escaping_the_destination_is_refused() throws Exception {
+        byte[] zip = zip("repo-sha/../../evil.txt", "owned");
+
+        assertThrows(IOException.class,
+                () -> Templates.unzipStrippingTopDirectory(zip, root.resolve("unpacked")));
+    }
+
+    // ---- fixtures --------------------------------------------------------------------------------------
+
+    /** A template as its author shipped it: two classes in one package, a pom, and the declaration. */
+    private Path template(String packageName) throws IOException {
+        Path project = root.resolve("template");
+        Path sources = project.resolve("src/main/java").resolve(packageName.replace('.', '/'));
+        Files.createDirectories(sources);
+        Files.writeString(sources.resolve("GameBot.java"), """
+                package %s;
+
+                public class GameBot {
+                    void go() {
+                        new Helper();
+                    }
+                }
+                """.formatted(packageName));
+        Files.writeString(sources.resolve("Helper.java"),
+                "package " + packageName + ";\n\nclass Helper {\n}\n");
+        Files.writeString(project.resolve("pom.xml"),
+                "<project><groupId>" + packageName + "</groupId></project>\n");
+        Files.writeString(project.resolve(Templates.TEMPLATE_FILE), "package=" + packageName + "\n");
+        return project;
+    }
+
+    private static byte[] zip(String... pathsAndContents) throws IOException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ZipOutputStream out = new ZipOutputStream(bytes)) {
+            for (int i = 0; i < pathsAndContents.length; i += 2) {
+                out.putNextEntry(new ZipEntry(pathsAndContents[i]));
+                out.write(pathsAndContents[i + 1].getBytes(StandardCharsets.UTF_8));
+                out.closeEntry();
+            }
+        }
+        return bytes.toByteArray();
+    }
+}
