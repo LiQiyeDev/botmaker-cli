@@ -9,6 +9,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **`sudo dnf install botmaker` and `sudo apt-get install botmaker`.** The release was a bare jar you ran
+  with `java -jar` from whatever directory it landed in. It is now also an `.rpm` and a `.deb` — one noarch
+  jar at `/usr/share/botmaker/`, a launcher at `/usr/bin/botmaker`, requiring a Java 25 runtime and
+  *recommending* Maven — built by nfpm from one description and republished as signed dnf/apt repositories
+  on GitHub Pages. Both packages are attached to the release as well, because the repository carries the
+  latest version only. The JBang alias and the `java -jar` download are unchanged.
 - **`botmaker bot` — a second noun, and the half of the platform that had no command.** The four verbs are
   all about a plugin; a *bot*, and in particular a bot published as a starting **template**, had nothing.
   Since a blank project names no plugin (2026-09-04), the richer starting point has to be a published bot

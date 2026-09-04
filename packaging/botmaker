@@ -1,0 +1,25 @@
+#!/bin/sh
+# The `botmaker` command, as the packages install it at /usr/bin/botmaker.
+#
+# This is the whole gain over `java -jar botmaker-cli-all.jar`: /usr/bin is on every user's PATH, so
+# `botmaker validate` works in the directory the plugin is actually in rather than in whichever directory
+# the jar was downloaded to.
+#
+# `exec` so the JVM replaces this shell: one process, and Ctrl-C and the exit code reach the caller
+# unmediated. The exit codes are a contract here (0 success, 1 failed, 2 bad command line) and a wrapper
+# that survived its child would be free to lose them.
+#
+# BOTMAKER_JAVA is for the machine with several runtimes and the wrong one first on PATH. BOTMAKER_JAVA_OPTS
+# is unquoted on purpose — it is a list of arguments, and quoting it would pass "-Xmx1g -Dx=y" as a single
+# argument the JVM refuses.
+set -eu
+
+JAR=/usr/share/botmaker/botmaker-cli-all.jar
+
+if [ ! -f "$JAR" ]; then
+    echo "botmaker: $JAR is missing — the package is installed but its jar is not." >&2
+    exit 1
+fi
+
+# shellcheck disable=SC2086
+exec "${BOTMAKER_JAVA:-java}" ${BOTMAKER_JAVA_OPTS:-} -jar "$JAR" "$@"

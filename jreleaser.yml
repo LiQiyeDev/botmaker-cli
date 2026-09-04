@@ -79,3 +79,12 @@ files:
     # The name itself is unversioned because the README's install line is
     # `releases/latest/download/botmaker-cli-all.jar`, which a versioned asset makes a 404.
     - path: target/botmaker-cli-all.jar
+
+    # The Linux packages, built by nfpm in the same job (packaging/nfpm.yaml). Unversioned for the same
+    # reason and under the same trap: never template projectVersion onto a path in target/.
+    #
+    # They are attached here as well as published to the dnf/apt repositories on Pages, because a release
+    # asset is the answer for a machine that will not have a third-party repository added to it — and
+    # because the repository carries the latest release only, so this is where an older one stays reachable.
+    - path: target/botmaker.rpm
+    - path: target/botmaker.deb

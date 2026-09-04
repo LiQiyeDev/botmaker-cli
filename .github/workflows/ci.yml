@@ -119,6 +119,36 @@ jobs:
           fi
           mv "$shaded" target/botmaker-cli-all.jar
 
+      # rpm + deb from ONE description, and a single Go binary rather than rpmbuild (not on ubuntu-latest),
+      # fakeroot, a .spec and a debian/ directory. See packaging/nfpm.yaml for why not jpackage, which is
+      # what botmaker-studio uses: it bundles a runtime and generates a desktop entry, and this is a 1 MB
+      # noarch jar with a three-line launcher.
+      #
+      # The names are unversioned, the same rule the jar follows and for the same reason — the Pages
+      # repository and `releases/latest/download/...` both need a path that does not move.
+      - name: Build the rpm and the deb
+        env:
+          NFPM_VERSION: '2.43.0'
+        run: |
+          curl -fsSL -o /tmp/nfpm.tar.gz \
+            "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_Linux_x86_64.tar.gz"
+          tar -xzf /tmp/nfpm.tar.gz -C /tmp nfpm
+          # The tag, not the pom: this pom's <version> is the cosmetic 0.0.0-SNAPSHOT JitPack overrides.
+          export BOTMAKER_VERSION="${GITHUB_REF_NAME#v}"
+          /tmp/nfpm package -f packaging/nfpm.yaml -p rpm -t target/botmaker.rpm
+          /tmp/nfpm package -f packaging/nfpm.yaml -p deb -t target/botmaker.deb
+          ls -la target/botmaker.rpm target/botmaker.deb
+
+      # The packages are what the dnf/apt repositories are built from, on a different runner.
+      - name: Upload the packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages
+          path: |
+            target/botmaker.rpm
+            target/botmaker.deb
+          if-no-files-found: error
+
       # The SAME script release.sh calls to gate this release (check_changelog). One extractor, two readers
       # in two repositories: a release whose notes come from a different rule than the one that gated it can
       # pass the gate and then publish something else.
@@ -136,6 +166,71 @@ jobs:
           arguments: full-release
         env:
           JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # The dnf + apt repositories, so `sudo dnf install botmaker` and `sudo apt-get install botmaker` work and
+  # every later release arrives with the rest of the system's updates. Lifted from botmaker-studio's job of
+  # the same name; the one difference is that these packages are small enough to host here outright.
+  #
+  # One-time setup: repo → Settings → Pages → Source = "GitHub Actions". Without it deploy-pages fails.
+  pages:
+    needs: release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    # Job-level permissions replace the workflow's. deploy-pages needs id-token for its OIDC handshake.
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    # Pages allows one deployment at a time; queue rather than cancel, so a release never ends up with the
+    # previous tag left live because its own deploy was cancelled by a newer one.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    env:
+      GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+    steps:
+      # Only for .github/scripts/build-repo.sh — nothing here is built from source.
+      - uses: actions/checkout@v4
+
+      - name: Download the packages
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-packages
+          path: artifacts
+
+      # createrepo_c writes the dnf metadata; apt-ftparchive (apt-utils) writes Packages/Release.
+      - name: Install repository tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y createrepo-c apt-utils
+
+      - name: Import signing key
+        if: env.GPG_KEY_ID != ''
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.gnupg && chmod 700 ~/.gnupg
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          gpgconf --reload gpg-agent || true
+          echo "$GPG_PRIVATE_KEY" | base64 -d | gpg --batch --import
+          echo "BOTMAKER_SIGN=1" >> "$GITHUB_ENV"
+
+      - name: Build dnf + apt repositories
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: bash .github/scripts/build-repo.sh artifacts site "${GITHUB_REF_NAME}"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
 
   # JitPack builds the library artifact itself from the pushed tag; this just asks it to start eagerly so
   # the plugin registry's CI doesn't wait on it. No secrets required.

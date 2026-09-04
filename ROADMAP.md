@@ -2,6 +2,16 @@
 
 ## Done
 
+### 2026-09-04 — `sudo dnf install botmaker`
+
+nfpm builds the rpm and the deb from `packaging/nfpm.yaml` in the `release` job, and a `pages` job lifted
+from Studio's republishes them as signed dnf/apt repositories. Both packages are small enough to host on
+Pages outright, which is the one place this differs from Studio's script (~240 MB there, so its rpm is
+metadata-only with a `--baseurl` rewrite). **Owed by the maintainer:** `GPG_KEY_ID` / `GPG_PRIVATE_KEY` /
+`GPG_PASSPHRASE` on this repository's secrets, and Pages set to "GitHub Actions" — without the first the
+repository still builds but publishes install snippets with the checks turned off, and without the second
+`deploy-pages` fails.
+
 ### 2026-09-04 — `botmaker bot`, the half of the platform with no command
 
 `bot new` writes the blank project (a pom naming no plugin, one `main`, the template declaration) or

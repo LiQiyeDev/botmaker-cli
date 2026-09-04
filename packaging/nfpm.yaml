@@ -1,0 +1,71 @@
+# One description, two packages: botmaker.rpm and botmaker.deb.
+#
+# WHY nfpm AND NOT jpackage, WHICH botmaker-studio USES. jpackage's job is to bundle a Java *runtime* with
+# an app-image and generate the launcher, desktop entry, icon and MIME registration around it — Studio's
+# .rpm is ~240 MB and needs every bit of that, and the same tool has to produce the .msi and .dmg, so one
+# packaging model covers all three platforms there. This is a 1 MB noarch jar with a three-line launcher and
+# no desktop presence at all. jpackage would still force one runner per target OS (it builds only for its
+# host) to produce a package whose contents are three files.
+#
+# WHY nfpm AND NOT rpmbuild + dpkg-deb. One file describes both formats, and it is a single Go binary in CI
+# rather than rpmbuild (absent from ubuntu-latest), fakeroot, a .spec and a debian/ directory — two
+# hand-maintained descriptions of one package, which is the arrangement this repository refuses everywhere
+# else.
+#
+# THE VERSION comes from the environment because the pom's <version> is the cosmetic 0.0.0-SNAPSHOT that
+# JitPack overrides with the tag; the workflow sets BOTMAKER_VERSION from the tag that triggered it. The
+# same rule as jreleaser.yml's: never take a release version from anything in target/.
+#
+# THE PACKAGES ARE NOT SIGNED HERE, and that is not an omission. The dnf and apt repositories on GitHub
+# Pages sign their *indexes* — repomd.xml.asc and InRelease — and an index carries the checksum of the
+# package it lists, so a signed index is already a signature over the payload it points at. A second,
+# package-level signature would need the private key on this runner as a file and would verify the same
+# bytes twice. See .github/scripts/build-repo.sh.
+
+name: botmaker
+arch: all
+platform: linux
+version: ${BOTMAKER_VERSION}
+version_schema: none
+section: devel
+priority: optional
+maintainer: LiQiyeDev <bgroisne@proton.me>
+description: |
+  The botmaker command — create, validate, run and publish BotMaker plugins and bots.
+  Four verbs around the plugin platform, and a `bot` noun that creates a bot project and
+  publishes it to the gallery as a starting template.
+vendor: BotMaker
+homepage: https://github.com/LiQiyeDev/botmaker-cli
+license: CC0-1.0
+
+contents:
+  - src: target/botmaker-cli-all.jar
+    dst: /usr/share/botmaker/botmaker-cli-all.jar
+
+  - src: packaging/botmaker
+    dst: /usr/bin/botmaker
+    file_info:
+      mode: 0755
+
+  - src: README.md
+    dst: /usr/share/doc/botmaker/README.md
+  - src: LICENSE
+    dst: /usr/share/doc/botmaker/LICENSE
+
+overrides:
+  # A JRE, and 25 rather than 21: this module compiles with maven.compiler.release 25 (2026-09-02), so an
+  # older runtime answers UnsupportedClassVersionError to the first command anybody runs.
+  rpm:
+    depends:
+      - java-25-openjdk-headless
+    recommends:
+      # Every verb that resolves anything shells out to `mvn` — deliberately, so the tool answers what the
+      # user's own Maven answers. A weak dependency rather than a hard one because `botmaker bot new` and
+      # `botmaker bot publish` need no Maven at all, and pulling a build tool onto a machine that only ever
+      # publishes a template would be wrong.
+      - maven
+  deb:
+    depends:
+      - openjdk-25-jre-headless | java25-runtime-headless
+    recommends:
+      - maven

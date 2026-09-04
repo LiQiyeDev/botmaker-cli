@@ -20,6 +20,27 @@ botmaker bot publish --repo me/gamebot --template --description "A game bot to s
 
 ## Installing it
 
+**Fedora / RHEL** — `botmaker` on your `PATH`, updated with the rest of the system:
+
+```bash
+sudo curl -fsSL -o /etc/yum.repos.d/botmaker.repo https://liqiyedev.github.io/botmaker-cli/botmaker.repo
+sudo dnf install botmaker
+```
+
+**Debian / Ubuntu**:
+
+```bash
+sudo install -d -m 755 /etc/apt/keyrings
+sudo curl -fsSL -o /etc/apt/keyrings/botmaker.asc https://liqiyedev.github.io/botmaker-cli/botmaker.asc
+echo "deb [signed-by=/etc/apt/keyrings/botmaker.asc] https://liqiyedev.github.io/botmaker-cli/deb stable main" \
+  | sudo tee /etc/apt/sources.list.d/botmaker.list
+sudo apt-get update && sudo apt-get install botmaker
+```
+
+Both install one jar at `/usr/share/botmaker/` and a launcher at `/usr/bin/botmaker`, and need a **Java 25**
+runtime. Maven is a *recommended* dependency rather than a required one: every verb that resolves a
+coordinate shells out to your own `mvn`, and `botmaker bot new` / `bot publish` need none.
+
 **With JBang** (no install step, and it keeps itself up to date):
 
 ```bash
