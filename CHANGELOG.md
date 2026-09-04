@@ -5,6 +5,19 @@ All notable changes to `botmaker-cli`.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this module uses
 [semantic versioning](https://semver.org/). `release.sh` refuses to cut a version with no section here.
 
+## [Unreleased]
+
+### Fixed
+
+- **The Maven artifact is resolvable from JitPack again.** The `.rpm`, the `.deb` and the jar attached to a
+  GitHub Release were never affected — they are built by this repository's own CI. What was broken is the
+  **library**: `com.botmaker.cli.validate` is resolved as a dependency by the plugin registry's CI, and no
+  release of it since 2026-09-02 could be resolved at all, because `botmaker-studio-api` and this pom did
+  not pin `maven-compiler-plugin` and JitPack's Maven defaults it to 3.1, which predates
+  `maven.compiler.release` and builds with `source 5`. So the gate that decides a pull request could not
+  load the checks its author had already run — which is the one property the two-artifact split exists to
+  guarantee. Pinned to 3.13.0 here and in every module upstream of it.
+
 ## [0.0.6] — 2026-09-04
 
 ### Added

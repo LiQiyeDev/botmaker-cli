@@ -150,6 +150,19 @@
           artifact and version; the release renames the asset once, on the way out.
         -->
         <plugins>
+            <!-- PIN THE COMPILER. Redundant locally, load-bearing on JitPack: its Maven defaults
+                 maven-compiler-plugin to 3.1, which predates maven.compiler.release (3.6) and so ignores
+                 the property above and builds with source 5 — "Source option 5 is no longer supported".
+                 botmaker-studio-api and botmaker-session both stopped building on JitPack on 2026-09-02
+                 for exactly that reason; this module's v0.0.6 was unresolvable in consequence, which
+                 means the plugin registry's CI could not load the very gate it is written to run. Do not
+                 remove it because a local build does not need it; botmaker-studio-api/pom.xml carries the
+                 full account. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
