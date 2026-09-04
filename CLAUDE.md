@@ -123,9 +123,17 @@ passed every check and then lost silently in `ValueCatalog.merge`. The gate reso
 `BOTMAKER_BUNDLED_PLUGINS` and asks the plugins themselves; a hand-kept list of ids here would be a second
 answer to a question the SDK already answers, and would drift the first time a type was added. Two details
 that are not decoration: the coordinates are resolved onto **one** classpath (`Subjects.fromCoordinates`),
-because the SDK's toolkit dependency is `optional` and therefore not transitive and `SdkPlugin` cannot be
-constructed without it; and a bundled id is **never** excluded by the submitting entry's own id, where a
-registry id is — re-submitting your own plugin is an update, taking the host's is not.
+because a bundled plugin's own dependency may be `optional` and so not transitive — the SDK's toolkit was,
+until SDK v1.1.5, and resolving `botmaker-sdk` alone gave a classpath `SdkPlugin` could not be constructed
+from; and a bundled id is **never** excluded by the submitting entry's own id, where a registry id is —
+re-submitting your own plugin is an update, taking the host's is not.
+
+**And the set is empty as of 2026-09-05, which is the truthful value rather than a disabled check.**
+`botmaker-studio` has bundled no plugin since 2026-09-02: every plugin, the SDK included, is loaded off the
+open project's own resolved classpath. So no id is reserved outside the index, and `com.botmaker.sdk` is
+claimed the way every other id is — by `plugins/com.botmaker.sdk.json` existing, which git enforces. The
+gate distinguishes the two states rather than treating them alike: **unset** warns (nobody said, and the
+hole is open), **set and empty** is silent (the host bundles nothing, and says so).
 
 It parses two positional arguments by reading an array, and that is not laziness: picocli is `optional`
 precisely so a library consumer resolves no parser, and a gate that needed one would undo it. Changed paths

@@ -93,9 +93,18 @@ public final class RegistryGate {
         Subjects subjects = new Subjects(console, new Mvn(console));
         Bundled bundled;
         String coordinates = System.getenv(Bundled.ENVIRONMENT_VARIABLE);
-        if (coordinates == null || coordinates.isBlank()) {
+        // Unset and set-but-empty are different answers and only one of them is a warning. Unset means
+        // nobody said, and the ids a host's own plugins own are then unreserved without anyone deciding
+        // that — the hole `Bundled` exists to close. Set and empty is a registry saying *this host bundles
+        // nothing*, which has been literally true since botmaker-studio stopped shipping a plugin on
+        // 2026-09-02; warning about it would print a false line on every pull request forever, and a
+        // warning nobody can act on is how a real one stops being read.
+        if (coordinates == null) {
             console.warn(Bundled.ENVIRONMENT_VARIABLE + " is not set, so the ids the host's own bundled"
-                    + " plugins own are NOT reserved. Set it to the bundled coordinates, comma separated.");
+                    + " plugins own are NOT reserved. Set it to the bundled coordinates, comma separated —"
+                    + " or to the empty string if the host bundles nothing.");
+            bundled = Bundled.none();
+        } else if (coordinates.isBlank()) {
             bundled = Bundled.none();
         } else {
             try {

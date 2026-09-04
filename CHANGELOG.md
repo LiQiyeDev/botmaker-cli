@@ -5,6 +5,28 @@ All notable changes to `botmaker-cli`.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this module uses
 [semantic versioning](https://semver.org/). `release.sh` refuses to cut a version with no section here.
 
+## [Unreleased]
+
+### Changed
+
+- **The registry gate tells "nobody said" apart from "this host bundles nothing".** `BOTMAKER_BUNDLED_PLUGINS`
+  **unset** still warns — the ids a host's own plugins own are then unreserved without anyone having decided
+  that, which is the hole `Bundled` exists to close. `BOTMAKER_BUNDLED_PLUGINS` **set to the empty string**
+  is now silent: it is a registry stating that its host bundles nothing, which has been literally true since
+  `botmaker-studio` stopped shipping a plugin on 2026-09-02. Both resolve to `Bundled.none()`, so no verdict
+  changes; what changes is that the registry can say it without printing a false warning on every pull
+  request forever. A warning nobody can act on is how a real one stops being read.
+
+### Fixed
+
+- **Two comments that described the world before SDK v1.1.5.** `Bundled`'s javadoc and this module's
+  `CLAUDE.md` both said the SDK declares `botmaker-plugin-toolkit` `optional` and that Studio answers that
+  with a `runtime` dependency of its own. Neither is true: the SDK's toolkit is an ordinary `compile`
+  dependency since v1.1.5, and Studio has had no toolkit at all since 2026-09-02. The reason for resolving
+  every bundled coordinate onto **one** classpath is unchanged and still stated — any bundled plugin's
+  `optional` dependency has the same shape — the SDK is now named as the historical example rather than the
+  live one. No behaviour changed.
+
 ## [0.0.10] — 2026-09-05
 
 ### Fixed

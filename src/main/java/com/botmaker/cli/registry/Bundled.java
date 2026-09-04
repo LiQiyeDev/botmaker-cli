@@ -38,7 +38,11 @@ import java.util.Set;
  */
 record Bundled(Set<String> pluginIds, Set<String> valueTypeIds) {
 
-    /** Comma-separated {@code groupId:artifactId:version}. Unset means nothing is reserved. */
+    /**
+     * Comma-separated {@code groupId:artifactId:version}. Unset means nothing is reserved and nobody said
+     * so — {@link RegistryGate} warns. Set and <em>empty</em> is the deliberate statement that the host
+     * bundles nothing, and is silent.
+     */
     static final String ENVIRONMENT_VARIABLE = "BOTMAKER_BUNDLED_PLUGINS";
 
     static Bundled none() {
@@ -74,10 +78,13 @@ record Bundled(Set<String> pluginIds, Set<String> valueTypeIds) {
      * All of them on <b>one</b> classpath, because that is what a host has.
      *
      * <p>Not one resolve per coordinate: a bundled plugin's own dependency may be {@code optional} and so
-     * not transitive — the SDK's toolkit is, and resolving {@code botmaker-sdk} alone yields a classpath
-     * {@code SdkPlugin} cannot be constructed from ({@code NoClassDefFoundError:
-     * com/botmaker/plugin/toolkit/AbstractStudioPlugin}). Studio answers this with a {@code runtime}
-     * dependency of its own; the gate answers it by naming both coordinates.
+     * not transitive, and a classpath missing it is one the plugin cannot be constructed from. The worked
+     * example was the SDK's own toolkit dependency, {@code optional} until SDK v1.1.5 — resolving
+     * {@code botmaker-sdk} alone gave {@code NoClassDefFoundError:
+     * com/botmaker/plugin/toolkit/AbstractStudioPlugin} inside {@code ServiceLoader}. That is fixed at the
+     * source (a plugin brings its own toolkit, because the loader resolves it child-first), so it is
+     * history rather than a live case — but the shape recurs with any bundled plugin's optional
+     * dependency, and one classpath for all of them is what a host has anyway.
      */
     private static void read(Console console, Subjects subjects, List<String> coordinates,
                              Set<String> pluginIds, Set<String> valueTypeIds) throws IOException {
