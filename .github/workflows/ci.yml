@@ -110,7 +110,9 @@ jobs:
           source .github/mvn-retry.sh
           mvn_retry mvn -B -f .deps/botmaker-studio-api/pom.xml install -DskipTests
           mvn_retry mvn -B -f .deps/botmaker-plugin-host/pom.xml install -DskipTests
-          mvn_retry mvn -B package -DskipTests
+          # The tag reaches the manifest here and nowhere else: ${project.version} is the cosmetic
+          # 0.0.0-SNAPSHOT, so without this `botmaker --version` answers "(dev)" on a released package.
+          mvn_retry mvn -B package -DskipTests "-Dbotmaker.cli.version=${GITHUB_REF_NAME#v}"
           shaded=target/botmaker-cli-0.0.0-SNAPSHOT-all.jar
           if [ ! -f "$shaded" ]; then
             echo "::error::$shaded was not produced — maven-shade-plugin attached nothing, or the pom's <version> is no longer 0.0.0-SNAPSHOT. jreleaser.yml expects target/botmaker-cli-all.jar." >&2

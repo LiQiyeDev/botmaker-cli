@@ -108,6 +108,35 @@ class TemplatesTest {
                 () -> Templates.unzipStrippingTopDirectory(zip, root.resolve("unpacked")));
     }
 
+    /**
+     * The project's coordinate takes the new name; a dependency that happens to share the old one does not.
+     * Before this, `bot new farm --from …` produced a project called farm that built base-0.0.1-SNAPSHOT.jar
+     * and collided in ~/.m2 with every other copy of the same template.
+     */
+    @Test
+    void the_project_is_renamed_and_a_dependency_of_the_same_name_is_not() throws Exception {
+        Path project = template("com.author.gamebot");
+
+        Templates.repackage(project, "com.myfarmer", "farm");
+
+        String pom = Files.readString(project.resolve("pom.xml"));
+        assertTrue(pom.contains("<artifactId>farm</artifactId>"), pom);
+        assertEquals(1, pom.split("<artifactId>base</artifactId>", -1).length - 1,
+                "the dependency keeps its own artifactId:\n" + pom);
+        assertTrue(pom.contains("<groupId>com.myfarmer</groupId>"), pom);
+        assertTrue(pom.contains("<groupId>com.elsewhere</groupId>"), pom);
+    }
+
+    /** No new name, no rename — the two-argument form is unchanged for every caller that had it. */
+    @Test
+    void the_coordinate_is_left_alone_when_no_name_is_given() throws Exception {
+        Path project = template("com.author.gamebot");
+
+        Templates.repackage(project, "com.myfarmer");
+
+        assertTrue(Files.readString(project.resolve("pom.xml")).contains("<artifactId>base</artifactId>"));
+    }
+
     // ---- fixtures --------------------------------------------------------------------------------------
 
     /** A template as its author shipped it: two classes in one package, a pom, and the declaration. */
@@ -126,8 +155,22 @@ class TemplatesTest {
                 """.formatted(packageName));
         Files.writeString(sources.resolve("Helper.java"),
                 "package " + packageName + ";\n\nclass Helper {\n}\n");
-        Files.writeString(project.resolve("pom.xml"),
-                "<project><groupId>" + packageName + "</groupId></project>\n");
+        // A dependency whose artifactId is the project's own name, deliberately: the rename must move the
+        // project's coordinate and leave the dependency alone.
+        Files.writeString(project.resolve("pom.xml"), """
+                <project>
+                    <groupId>%s</groupId>
+                    <artifactId>base</artifactId>
+                    <version>0.0.1-SNAPSHOT</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>com.elsewhere</groupId>
+                            <artifactId>base</artifactId>
+                            <version>1.0.0</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """.formatted(packageName));
         Files.writeString(project.resolve(Templates.TEMPLATE_FILE), "package=" + packageName + "\n");
         return project;
     }

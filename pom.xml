@@ -48,6 +48,16 @@
         <!-- The version botmaker-studio-api itself pins. One JavaFX across the platform: this module never
              constructs a Node, but it links against the same SlotEditor the contract declares. -->
         <javafx.version>25.0.4</javafx.version>
+        <!--
+          What the version option prints, stamped into the executable jar's manifest.
+
+          NOT ${project.version}: this pom's <version> is the cosmetic 0.0.0-SNAPSHOT that JitPack
+          overrides with the tag (umbrella CLAUDE.md, *JitPack coordinate model*), so the manifest read
+          "0.0.0-SNAPSHOT" and the version option answered "botmaker (dev)" on an rpm that called itself
+          botmaker-0.0.5-1. The release job passes the tag as -Dbotmaker.cli.version; every other build
+          keeps "dev", which is the truth about a build nobody released.
+        -->
+        <botmaker.cli.version>dev</botmaker.cli.version>
         <!-- The reactor/offline values. jitpack.yml injects the released tags from .deps.env at build time. -->
         <botmaker.studioapi.version>0.0.0-SNAPSHOT</botmaker.studioapi.version>
         <botmaker.pluginhost.version>0.0.0-SNAPSHOT</botmaker.pluginhost.version>
@@ -172,6 +182,12 @@
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>com.botmaker.cli.Main</mainClass>
+                                    <!-- Read back by Main.ManifestVersion through
+                                         Package.getImplementationVersion(). -->
+                                    <manifestEntries>
+                                        <Implementation-Title>botmaker</Implementation-Title>
+                                        <Implementation-Version>${botmaker.cli.version}</Implementation-Version>
+                                    </manifestEntries>
                                 </transformer>
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>

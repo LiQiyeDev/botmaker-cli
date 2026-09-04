@@ -91,9 +91,9 @@ final class BotNewCommand implements Callable<Integer> {
 
         console.step("Downloading " + owner + "/" + repo + "@" + release + "…");
         Templates.downloadInto(owner, repo, release, projectDir);
-        Templates.repackage(projectDir, pkg);
-        console.step("Unpacked into " + projectDir + " as package " + pkg);
-        console.step("Its classes keep the author's names — only the package changed.");
+        Templates.repackage(projectDir, pkg, name);
+        console.step("Unpacked into " + projectDir + " as package " + pkg + ", artifactId " + name);
+        console.step("Its classes keep the author's names — only the package and the coordinate changed.");
     }
 
     /**

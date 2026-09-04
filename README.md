@@ -151,9 +151,12 @@ no plugin, no BotMaker API — that is what a project with no plugins installed 
 from being a bot (**Project ▸ Manage Plugins** in Studio). The repositories are declared, so that step needs
 no hand-edited XML.
 
-`--from` downloads that template's release archive and renames **only its package** into yours
-(`--package`, default `com.<name>`). Its entry class keeps the author's name, its helpers keep theirs, its
-javadoc keeps its wording: what they shipped is what demonstrably built for them.
+`--from` downloads that template's release archive and renames **its package** into yours (`--package`,
+default `com.<name>`) **and its Maven coordinate** into your project's name. Its entry class keeps the
+author's name, its helpers keep theirs, its javadoc keeps its wording: what they shipped is what
+demonstrably built for them. The coordinate is the exception because it is not the author's code — it says
+which project this is, and a project you called `farm` announcing itself as `base` builds
+`base-0.0.1-SNAPSHOT.jar` and collides in `~/.m2` with everyone else's copy of the same template.
 
 ### `botmaker bot publish`
 

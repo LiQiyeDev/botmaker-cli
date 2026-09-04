@@ -5,6 +5,23 @@ All notable changes to `botmaker-cli`.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this module uses
 [semantic versioning](https://semver.org/). `release.sh` refuses to cut a version with no section here.
 
+## [Unreleased]
+
+### Fixed
+
+- **`bot new --from` renames the project, not only its package.** The pom came out half-renamed: `groupId`
+  changed and `artifactId` did not, so `bot new farm --from …` produced a project called `farm` that built
+  `base-0.0.1-SNAPSHOT.jar` and collided in `~/.m2` with every other copy of the same template. The
+  groupId had only changed by accident, because it happened to equal the declared package prefix and the
+  text pass caught it. The rule is now stated rather than incidental: **class names, file names and javadoc
+  keep the author's wording — the Maven coordinate is the project's identity and takes the new name.** A
+  dependency that happens to share the old artifactId is left alone, and so is a `<parent>`.
+- **`--version` prints the version.** It answered `botmaker (dev)` on an rpm calling itself
+  `botmaker-0.0.5-1`, because the manifest carried the pom's cosmetic `0.0.0-SNAPSHOT` — the same JitPack
+  property that cost `v0.0.1` its release asset, surfacing in a third place. The release job passes the tag
+  as `-Dbotmaker.cli.version`, shade writes it to `Implementation-Version`, and a build nobody released
+  still says `(dev)`, which is true of it.
+
 ## [0.0.5] — 2026-09-04
 
 ### Fixed

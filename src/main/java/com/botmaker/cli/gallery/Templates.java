@@ -1,5 +1,6 @@
 package com.botmaker.cli.gallery;
 
+import com.botmaker.cli.project.Poms;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -113,6 +114,30 @@ public final class Templates {
      * already changed, and a half-moved tree is the state hardest to recover from.
      */
     public static void repackage(Path projectDir, String newPackage) throws IOException {
+        repackage(projectDir, newPackage, null);
+    }
+
+    /**
+     * As {@link #repackage(Path, String)}, and also names the project {@code newArtifactId}.
+     *
+     * <p><b>The artifactId is the project's identity, not the author's code, and the two rules are
+     * different.</b> Class names, file names and javadoc keep the template author's wording — what they
+     * shipped is what demonstrably built for them. The Maven coordinate is the opposite: it says which
+     * project this is, and a project somebody created as {@code farm} announcing itself as {@code base}
+     * builds {@code base-0.0.1-SNAPSHOT.jar} and collides in {@code ~/.m2} with every other copy of the
+     * same template.
+     *
+     * <p>Before this existed the pom came out <em>half</em>-renamed, which is what made the rule visible:
+     * {@code groupId} already changed, but only by accident — it happened to equal the declared package
+     * prefix, so the text pass caught it. Renaming the artifact deliberately is what makes that consistent
+     * rather than incidental.
+     *
+     * <p>A text replacement rather than a DOM rewrite: the pom is the author's file, with the author's
+     * comments and spacing in it, and re-serialising a parsed document to change one element would
+     * reformat all of it.
+     */
+    public static void repackage(Path projectDir, String newPackage, String newArtifactId)
+            throws IOException {
         String declared = declaredPackage(projectDir);
         Path sources = projectDir.resolve("src/main/java").resolve(declared.replace('.', '/'));
         if (!Files.isDirectory(sources)) {
@@ -120,12 +145,46 @@ public final class Templates {
                     + " sources in it. Ask its author to fix its " + TEMPLATE_FILE + ".");
         }
         if (declared.equals(newPackage)) {
+            renameArtifact(projectDir, newArtifactId);
             Files.deleteIfExists(projectDir.resolve(TEMPLATE_FILE));
             return;
         }
         rewriteText(projectDir, declared, newPackage);
         movePackage(projectDir, declared, newPackage);
+        renameArtifact(projectDir, newArtifactId);
         Files.deleteIfExists(projectDir.resolve(TEMPLATE_FILE));
+    }
+
+    /**
+     * Rewrites the project's own {@code <artifactId>} — never a dependency's, and never a parent's.
+     *
+     * <p>The parent block is skipped by starting after it: a parent coordinate is a different project and
+     * changing it would repoint the build. Dependencies sit below the project's own coordinate in every
+     * pom Maven itself generates, so replacing the first occurrence after the parent is the project's.
+     */
+    private static void renameArtifact(Path projectDir, String newArtifactId) throws IOException {
+        if (newArtifactId == null || newArtifactId.isBlank()) {
+            return;
+        }
+        Path pom = projectDir.resolve("pom.xml");
+        if (!Files.isRegularFile(pom)) {
+            return;
+        }
+        String current = Poms.coordinate(pom).artifactId();
+        if (current.isBlank() || current.equals(newArtifactId)) {
+            return;
+        }
+        String text = Files.readString(pom);
+        int from = text.indexOf("</parent>");
+        from = from < 0 ? 0 : from + "</parent>".length();
+        String element = "<artifactId>" + current + "</artifactId>";
+        int at = text.indexOf(element, from);
+        if (at < 0) {
+            return;   // spread over lines, or entity-escaped: leave the author's file alone
+        }
+        Files.writeString(pom, text.substring(0, at)
+                + "<artifactId>" + newArtifactId + "</artifactId>"
+                + text.substring(at + element.length()));
     }
 
     /** The declaration file at a template's root — {@code TemplateProject.FILE_NAME}, and it must match. */

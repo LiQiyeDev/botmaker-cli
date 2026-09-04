@@ -127,15 +127,21 @@ public final class Main implements Callable<Integer> {
     /**
      * The version, out of the jar's manifest.
      *
-     * <p>{@code (dev)} when there is no manifest, which is what an IDE launch and a test run both look like.
-     * Not read from a generated constant: this project's poms carry the cosmetic {@code 0.0.0-SNAPSHOT} that
-     * JitPack overrides with the tag, so a compiled-in version would be that string forever.
+     * <p>{@code (dev)} when there is no manifest, which is what an IDE launch and a test run both look like —
+     * and equally when the manifest says {@code dev}, which is what an unreleased build of the executable
+     * jar carries. Not read from a generated constant, and <em>not</em> from {@code ${project.version}}:
+     * this project's poms carry the cosmetic {@code 0.0.0-SNAPSHOT} that JitPack overrides with the tag, so
+     * either would be that string forever. The release job passes the tag as
+     * {@code -Dbotmaker.cli.version}, which the shade plugin writes into {@code Implementation-Version};
+     * see the property in the pom.
      */
     static final class ManifestVersion implements IVersionProvider {
         @Override
         public String[] getVersion() {
             String implementation = Main.class.getPackage().getImplementationVersion();
-            return new String[]{"botmaker " + (implementation == null ? "(dev)" : implementation)};
+            boolean released = implementation != null && !implementation.isBlank()
+                    && !implementation.equals("dev") && !implementation.endsWith("-SNAPSHOT");
+            return new String[]{"botmaker " + (released ? implementation : "(dev)")};
         }
     }
 }
