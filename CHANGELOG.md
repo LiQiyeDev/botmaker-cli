@@ -5,6 +5,31 @@ All notable changes to `botmaker-cli`.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this module uses
 [semantic versioning](https://semver.org/). `release.sh` refuses to cut a version with no section here.
 
+## [Unreleased]
+
+### Fixed
+
+- **`publish` wrote a property name into the registry entry where a version belongs.** Found by publishing
+  the SDK for real, which is what that exercise was for:
+
+  ```json
+  "minContractVersion" : "${botmaker.studioapi.version}"
+  ```
+
+  `Poms` reads a pom as XML on purpose — the scope checks ask what the pom *says*, and a toolkit dependency
+  inheriting `provided` from a parent is still a broken plugin — so a version declared through a property
+  came out as its own name. That is the **ordinary** shape of a plugin's pom in this project: every module
+  pins its BotMaker upstreams through a property so `jitpack.yml` can inject the released tag at build time.
+  A compatibility floor reading `${botmaker.studioapi.version}` is one nothing can be compared against.
+
+  `Poms.properties` and `Poms.interpolate` are new and are used by `publish` alone; `Poms.dependencies`
+  still answers what the pom says. And interpolation is not enough by itself here — this project's committed
+  poms resolve that property to the cosmetic `0.0.0-SNAPSHOT` JitPack overrides — so **`publish` now refuses
+  a contract version that is unresolved, blank or a snapshot**, naming `--min-contract-version` and, for a
+  module of this project, the `STUDIO_API_TAG` in its own `.deps.env`. Same argument as the `-SNAPSHOT`
+  refusal on `verifiedVersion`: the author knows the answer, the tool does not, and a wrong value in an
+  entry is a wrong value a stranger reads.
+
 ## [0.0.11] — 2026-09-05
 
 ### Changed

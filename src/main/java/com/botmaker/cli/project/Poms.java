@@ -17,7 +17,9 @@ import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -77,6 +79,54 @@ public final class Poms {
             }
         }
         return new Dependency(group, text(root, "artifactId"), version, "");
+    }
+
+    /**
+     * The {@code <properties>} block, as declared. A pom with no block answers an empty map.
+     *
+     * <p>Deliberately <b>not</b> applied by {@link #dependencies}: the class opens by saying that the
+     * question here is what a pom <em>says</em>, and a scope check must keep reading it that way. This is
+     * for the one caller that genuinely needs the value rather than the text — {@code publish}, which puts
+     * a version into a registry entry that a stranger will read, where {@code ${botmaker.studioapi.version}}
+     * is not an answer.
+     */
+    public static Map<String, String> properties(Path pom) throws IOException {
+        Element block = firstChild(parse(pom).getDocumentElement(), "properties");
+        if (block == null) {
+            return Map.of();
+        }
+        Map<String, String> out = new LinkedHashMap<>();
+        NodeList nodes = block.getChildNodes();
+        for (int i = 0; i < nodes.getLength(); i++) {
+            if (nodes.item(i) instanceof Element element) {
+                out.put(element.getTagName(), element.getTextContent().trim());
+            }
+        }
+        return Map.copyOf(out);
+    }
+
+    /**
+     * Substitutes {@code ${name}} from {@code properties}, following a property whose own value is another
+     * reference, up to a small depth.
+     *
+     * <p>One level is not enough for a real pom and unbounded recursion is a hang on a pom that references
+     * itself, so it stops after ten passes and returns whatever it has — the caller's job is to notice a
+     * {@code ${} that survived, not this method's to decide what to do about it. Nothing outside the
+     * {@code <properties>} block is consulted: {@code ${project.version}} and the settings' properties
+     * belong to a model reader, and a caller meeting one gets an unresolved string and can say so.
+     */
+    public static String interpolate(String value, Map<String, String> properties) {
+        String current = value == null ? "" : value;
+        for (int pass = 0; pass < 10 && current.contains("${"); pass++) {
+            String before = current;
+            for (Map.Entry<String, String> property : properties.entrySet()) {
+                current = current.replace("${" + property.getKey() + "}", property.getValue());
+            }
+            if (current.equals(before)) {
+                break;
+            }
+        }
+        return current;
     }
 
     public static Optional<Dependency> find(List<Dependency> declared, String groupId, String artifactId) {

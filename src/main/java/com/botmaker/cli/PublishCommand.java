@@ -92,7 +92,9 @@ final class PublishCommand implements Callable<Integer> {
     private String tag;
 
     @Option(names = "--min-contract-version", paramLabel = "<version>",
-            description = "Default: the botmaker-studio-api version this pom declares.")
+            description = "Default: the botmaker-studio-api version this pom declares, with its own "
+                    + "<properties> substituted in. Required when that is a property this pom does not "
+                    + "define, or a -SNAPSHOT.")
     private String minContractVersion;
 
     @Option(names = "--dry-run", description = "Print the index entry and open nothing.")
@@ -118,6 +120,14 @@ final class PublishCommand implements Callable<Integer> {
             console.error(snapshot);
             return 1;
         }
+        String contractVersion = minContractVersion != null && !minContractVersion.isBlank()
+                ? minContractVersion.trim()
+                : declaredContractVersion(pom);
+        String contract = contractVersionRefusal(contractVersion);
+        if (contract != null) {
+            console.error(contract);
+            return 1;
+        }
         if (repo != null && !dryRun && !repositoryExists(repo)) {
             console.error("no repository " + repo + " that `gh` can see. An entry's repo is the one field"
                     + " whose whole job is to give a reader somewhere to go.");
@@ -136,7 +146,7 @@ final class PublishCommand implements Callable<Integer> {
             return 1;
         }
 
-        RegistryEntry entry = compose(subject, published);
+        RegistryEntry entry = compose(subject, published, contractVersion);
         String json = Registry.mapper().writerWithDefaultPrettyPrinter().writeValueAsString(entry);
 
         if (dryRun || repo == null) {
@@ -229,7 +239,59 @@ final class PublishCommand implements Callable<Integer> {
         }
     }
 
-    private RegistryEntry compose(PluginSubject subject, String published) throws IOException {
+    /**
+     * The {@code botmaker-studio-api} version this pom declares, with its {@code <properties>} substituted
+     * in.
+     *
+     * <p>The substitution is not tidiness. Every module in this project pins its BotMaker upstreams through
+     * a property so that {@code jitpack.yml} can inject the released tag at build time, so the pom of a
+     * plugin written the way this project writes one says {@code ${botmaker.studioapi.version}} — and that
+     * string, copied verbatim into a registry entry, is a compatibility floor no reader can compare
+     * anything against. {@link Poms#dependencies} deliberately keeps saying what the pom says, because a
+     * scope check must; this asks the other question, for the one field that leaves the machine.
+     */
+    private String declaredContractVersion(Path pom) throws IOException {
+        String declared = Poms.find(Poms.dependencies(pom), "com.github.LiQiyeDev", "botmaker-studio-api")
+                .map(Poms.Dependency::version)
+                .orElse("");
+        return Poms.interpolate(declared, Poms.properties(pom)).trim();
+    }
+
+    /**
+     * Refuses a contract version a stranger cannot act on. Returns the refusal, or {@code null}.
+     *
+     * <p>Three ways it is unusable, and the third is the one this project hits every time. An unresolved
+     * {@code ${…}} means the property lives somewhere this reader cannot see — a parent pom, the settings —
+     * and would be published literally. A blank means the plugin declares no contract at all, which
+     * {@code pom-scopes} refuses anyway. And a {@code -SNAPSHOT} is what every BotMaker module's own
+     * committed pom carries, because JitPack overrides it with the tag: it is the cosmetic version, never
+     * the one the plugin was built against. In all three the author knows the answer and the tool does not,
+     * so it asks rather than guessing — {@code --min-contract-version} is the flag, and for a module of this
+     * project the value is the {@code STUDIO_API_TAG} in its own {@code .deps.env}.
+     */
+    static String contractVersionRefusal(String contractVersion) {
+        if (contractVersion == null || contractVersion.isBlank()) {
+            return "this pom declares no com.github.LiQiyeDev:botmaker-studio-api dependency, so there is"
+                    + " no contract version to publish. Declare it at `provided` scope, or pass"
+                    + " --min-contract-version <version>.";
+        }
+        if (contractVersion.contains("${")) {
+            return "the contract version reads " + contractVersion + ", a property this pom does not"
+                    + " define — a reader of the registry cannot compare anything against it. Pass"
+                    + " --min-contract-version <version> with the botmaker-studio-api version this plugin"
+                    + " was actually built against.";
+        }
+        if (contractVersion.endsWith("-SNAPSHOT")) {
+            return "the contract version reads " + contractVersion + ", which is a snapshot: JitPack"
+                    + " overrides it with the tag, so it is not a version anyone can resolve. Pass"
+                    + " --min-contract-version <version> — for a module of this project that is the"
+                    + " STUDIO_API_TAG in its own .deps.env.";
+        }
+        return null;
+    }
+
+    private RegistryEntry compose(PluginSubject subject, String published, String contractVersion)
+            throws IOException {
         Console console = parent.console();
         String id = "";
         String name = "";
@@ -253,10 +315,6 @@ final class PublishCommand implements Callable<Integer> {
         }
 
         Poms.Dependency self = Poms.coordinate(subject.pom());
-        String contractVersion = Poms.find(Poms.dependencies(subject.pom()),
-                        "com.github.LiQiyeDev", "botmaker-studio-api")
-                .map(Poms.Dependency::version)
-                .orElse("");
 
         return new RegistryEntry(
                 id,
@@ -265,7 +323,7 @@ final class PublishCommand implements Callable<Integer> {
                 repo,
                 description,
                 List.of(tags.split("\\s*,\\s*")).stream().filter(t -> !t.isBlank()).toList(),
-                minContractVersion != null ? minContractVersion : contractVersion,
+                contractVersion,
                 valueTypeIds,
                 // The tag the world can download, which is the version the registry's gate will resolve and
                 // run the same checks against. A verifiedAt with no version beside it is a date attached to
