@@ -286,9 +286,19 @@ final class PublishCommand implements Callable<Integer> {
         Console console = parent.console();
         Path work = Files.createTempDirectory("botmaker-publish");
         Path clone = work.resolve("registry");
-        if (gh(work, "repo", "fork", REGISTRY_REPO, "--clone=true", "--remote=false",
-                "--fork-name=botmaker-plugin-registry") != 0) {
-            console.error("could not fork " + REGISTRY_REPO + ". Is `gh` installed and authenticated?");
+        // A fork only when a fork is needed: GitHub does not fork a repository into the account that owns
+        // it, so the registry's own maintainer would be refused here. And no --remote flag — `gh repo fork`
+        // rejects it outright when it is given a repository argument, which is how `bot publish` failed on
+        // its first real run.
+        boolean push = Shell.capture(work, "gh", "api", "repos/" + REGISTRY_REPO, "--jq",
+                ".permissions.push").orElse("").trim().equals("true");
+        int fetched = push
+                ? gh(work, "repo", "clone", REGISTRY_REPO, "botmaker-plugin-registry")
+                : gh(work, "repo", "fork", REGISTRY_REPO, "--clone=true",
+                        "--fork-name=botmaker-plugin-registry");
+        if (fetched != 0) {
+            console.error("could not " + (push ? "clone " : "fork ") + REGISTRY_REPO
+                    + ". Is `gh` installed and authenticated?");
             return 1;
         }
         // `gh repo fork --clone` clones into the current directory under the repository's own name.

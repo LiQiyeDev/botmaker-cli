@@ -5,6 +5,31 @@ All notable changes to `botmaker-cli`.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this module uses
 [semantic versioning](https://semver.org/). `release.sh` refuses to cut a version with no section here.
 
+## [Unreleased]
+
+### Fixed
+
+All three found by publishing the first template for real — `LiQiyeDev/botmaker-base`, gallery pull request
+&#35;1 — which is what that exercise was for. None of them could have been caught by a test that stubs `gh`.
+
+- **A blank pom targets the platform, not the JVM that wrote it.** `maven.compiler.release` was
+  `Runtime.version().feature()`, copied from Studio's `MavenService` where it is right: Studio creates a
+  project on the machine that will build it. A project created here *travels* — it is one `bot publish`
+  away from being a template somebody else downloads — so the running JVM is the one thing that must not
+  reach the file. The first template was composed on a Java 27 box and would have answered
+  `release version 27 not supported` to every author on 25, for a project containing one `println`. It is
+  25 now: the platform's own baseline, which a newer JDK compiles happily.
+- **`publish` and `bot publish` fork only when a fork is needed.** Both opened their pull request by
+  forking, and GitHub does not fork a repository into the account that already owns it — so the gallery's
+  and the registry's own maintainer was refused by the step that submits. The branch now goes straight onto
+  the target when the authenticated user can push there (`repos/<slug>` → `.permissions.push`), and through
+  a fork otherwise. Same pull request either way; only the head branch moves.
+- **`gh repo fork --remote=false` is not a flag.** With a repository argument `gh` refuses it outright —
+  `the --remote flag is unsupported when a repository argument is provided` — so *every* pull request either
+  command has ever tried to open failed at that line. Both call sites drop it.
+- **`bot publish` initialises `main`, not `master`.** `git init` on a machine with no `init.defaultBranch`
+  gives `master`, and the branch name is in every URL the published entry's readers follow.
+
 ## [0.0.4] — 2026-09-04
 
 ### Fixed

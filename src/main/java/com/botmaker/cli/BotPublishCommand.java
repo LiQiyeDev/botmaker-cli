@@ -148,7 +148,10 @@ final class BotPublishCommand implements Callable<Integer> {
     private boolean publishRepository(Console console, Path dir, GalleryEntry entry) throws IOException {
         if (Shell.capture(dir, "git", "rev-parse", "--git-dir").isEmpty()) {
             console.step("Not a git repository yet — initialising one.");
-            if (Shell.run(console, dir, "git", "init", "-q") != 0
+            // -b main, not the built-in default: a machine with no init.defaultBranch set gets `master`,
+            // which is what the first real run of this command produced. The branch name is in every URL
+            // the entry's readers follow.
+            if (Shell.run(console, dir, "git", "init", "-q", "-b", "main") != 0
                     || Shell.run(console, dir, "git", "add", "-A") != 0
                     || Shell.run(console, dir, "git", "commit", "-qm", "Initial commit") != 0) {
                 console.error("could not make the first commit in " + dir);
@@ -203,17 +206,37 @@ final class BotPublishCommand implements Callable<Integer> {
         return true;
     }
 
-    /** Step four: one file, in a fork, as a pull request. */
+    /**
+     * Step four: one file, on a branch, as a pull request.
+     *
+     * <p><b>A fork only when a fork is needed.</b> The first real run of this command was the gallery's
+     * own maintainer publishing a template, and GitHub does not fork a repository into the account that
+     * already owns it — so the branch goes straight onto the gallery whenever the authenticated user can
+     * push there, and through a fork otherwise. That is the same pull request either way; what changes is
+     * only where its head branch lives.
+     */
     private int openPullRequest(Console console, GalleryEntry entry, String json) throws IOException {
         Path work = Files.createTempDirectory("botmaker-bot-publish");
-        if (Shell.gh(console, work, "repo", "fork", GALLERY_REPO, "--clone=true", "--remote=false",
+        boolean push = Shell.capture(work, "gh", "api", "repos/" + GALLERY_REPO, "--jq",
+                ".permissions.push").orElse("").trim().equals("true");
+        if (push) {
+            console.step("You can push to " + GALLERY_REPO + " — branching on it directly rather than"
+                    + " forking.");
+            if (Shell.gh(console, work, "repo", "clone", GALLERY_REPO, "botmaker-gallery") != 0) {
+                console.error("could not clone " + GALLERY_REPO + ". Is `gh` installed and authenticated?");
+                return 1;
+            }
+            // `gh repo fork` takes no --remote when it is given a repository argument, which is the flag
+            // that failed the first real run; the clone arm never wanted one.
+        } else if (Shell.gh(console, work, "repo", "fork", GALLERY_REPO, "--clone=true",
                 "--fork-name=botmaker-gallery") != 0) {
             console.error("could not fork " + GALLERY_REPO + ". Is `gh` installed and authenticated?");
             return 1;
         }
         Path clone = work.resolve("botmaker-gallery");
         if (!Files.isDirectory(clone)) {
-            console.error("the fork of " + GALLERY_REPO + " did not clone into " + work);
+            console.error("the " + (push ? "clone" : "fork") + " of " + GALLERY_REPO
+                    + " did not land in " + work);
             return 1;
         }
         Path entries = clone.resolve(GalleryEntry.ENTRIES_DIRECTORY);

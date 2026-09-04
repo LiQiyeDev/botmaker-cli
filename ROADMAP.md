@@ -62,10 +62,17 @@ validator, so it must never be older than this module's bytecode. Full account i
 The four verbs exist and `validate` is a library. What is unproven is the half that needs the other two
 repositories:
 
-- **`publish`'s real path is unexercised.** `--dry-run` composes and prints an entry; the `gh` fork → branch
-  → commit → PR path is written and has never run, because `LiQiyeDev/botmaker-plugin-registry` does not
-  exist yet. It reports the missing `index.json` by name rather than failing obscurely, and that message is
-  the thing to check first when the registry lands.
+- **`bot publish`'s real path has now run, and it found three defects the tests could not.**
+  `LiQiyeDev/botmaker-base` is the first published template (gallery pull request #1, `validate` green): a
+  blank project, since a template pinning the SDK would name a plugin the registry does not carry yet.
+  What the run caught: `gh repo fork --remote=false` is not a flag when a repository argument is given, so
+  **no** pull request either publisher had ever tried to open could have succeeded; the gallery's own
+  maintainer cannot fork their own repository, so the submit step needs a direct-branch arm; and a blank
+  pom was writing the *publisher's* JVM into a file that travels. The lesson is the one the phase was for —
+  a stubbed `gh` proves the arguments are assembled, not that they are accepted.
+- **`publish`'s real path is still unexercised.** The same two `gh` fixes landed on it unrun, because
+  `LiQiyeDev/botmaker-plugin-registry` does not exist yet. It reports the missing `index.json` by name
+  rather than failing obscurely, and that message is the thing to check first when the registry lands.
 - **`run` has been exercised without Studio.** The install and the pom edit are covered; launching Studio
   through `--umbrella` and `--studio` needs a machine with one.
 
