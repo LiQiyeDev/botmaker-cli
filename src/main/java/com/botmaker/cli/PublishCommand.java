@@ -1,6 +1,7 @@
 package com.botmaker.cli;
 
 import com.botmaker.cli.project.Poms;
+import com.botmaker.cli.project.Tags;
 import com.botmaker.cli.registry.Registry;
 import com.botmaker.cli.registry.RegistryEntry;
 import com.botmaker.cli.validate.CheckResult;
@@ -19,6 +20,8 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Callable;
 
 /**
@@ -33,6 +36,14 @@ import java.util.concurrent.Callable;
  * <p>Validation runs first and a failure stops it. That is the whole point of {@code validate} being a
  * library rather than a command: the check that refuses the pull request is the check that refused to open
  * it.
+ *
+ * <p><b>Nothing is published that nobody has followed.</b> An entry is a set of pointers — a coordinate at a
+ * version, and a repository — and every one of them is checked here before the pull request is opened, for
+ * the same reason validation runs here at all: a submission that fails in the registry's CI for a reason its
+ * author could not have seen coming is the experience this command exists to prevent. So the version is a
+ * <b>git tag</b> rather than the pom's {@code <version>} (see {@link #publishedVersion}), a
+ * {@code -SNAPSHOT} is refused by name, the coordinate is resolved before the pull request is opened, and
+ * {@code --repo} is confirmed to exist.
  *
  * <p><b>One file, {@code plugins/&lt;plugin-id&gt;.json}, and never the index.</b> The index is generated
  * from those files by the registry's own CI. That is what makes two authors publishing on the same day two
@@ -69,6 +80,17 @@ final class PublishCommand implements Callable<Integer> {
     @Option(names = "--tags", defaultValue = "", paramLabel = "<a,b,c>", description = "Comma separated.")
     private String tags;
 
+    /**
+     * <b>{@code --tag}, not {@code --version}, and the name is forced rather than chosen.</b>
+     * {@code mixinStandardHelpOptions} already declares {@code -V, --version} on every command here, so a
+     * second one would be a duplicate picocli refuses at construction. It reads better anyway: what JitPack
+     * serves an artifact under is a git tag.
+     */
+    @Option(names = "--tag", paramLabel = "<tag>",
+            description = "The published version the registry's gate will resolve. Default: the newest git "
+                    + "tag on this working copy, or the pom's own <version> when there is not one.")
+    private String tag;
+
     @Option(names = "--min-contract-version", paramLabel = "<version>",
             description = "Default: the botmaker-studio-api version this pom declares.")
     private String minContractVersion;
@@ -83,6 +105,25 @@ final class PublishCommand implements Callable<Integer> {
     public Integer call() throws IOException {
         Console console = parent.console();
         Path dir = Path.of(directory).toAbsolutePath().normalize();
+        Path pom = dir.resolve("pom.xml");
+        if (!Files.isRegularFile(pom)) {
+            throw new IOException("no pom.xml in " + dir + " — point `botmaker publish` at a plugin project");
+        }
+
+        // Before the compile, because both of these are refusals and a refusal the author waits a minute for
+        // is a refusal that reads as a fault in the tool.
+        String published = publishedVersion(dir, pom);
+        String snapshot = snapshotRefusal(published);
+        if (snapshot != null) {
+            console.error(snapshot);
+            return 1;
+        }
+        if (repo != null && !dryRun && !repositoryExists(repo)) {
+            console.error("no repository " + repo + " that `gh` can see. An entry's repo is the one field"
+                    + " whose whole job is to give a reader somewhere to go.");
+            return 1;
+        }
+
         PluginSubject subject = parent.subjects().fromDirectory(dir, !noBuild);
 
         // Aside, on stderr: this command's stdout is the entry, and `--dry-run > entry.json` has to be a
@@ -95,7 +136,7 @@ final class PublishCommand implements Callable<Integer> {
             return 1;
         }
 
-        RegistryEntry entry = compose(subject);
+        RegistryEntry entry = compose(subject, published);
         String json = Registry.mapper().writerWithDefaultPrettyPrinter().writeValueAsString(entry);
 
         if (dryRun || repo == null) {
@@ -108,10 +149,87 @@ final class PublishCommand implements Callable<Integer> {
             console.out(json);
             return 0;
         }
+        if (!resolves(entry)) {
+            return 1;
+        }
         return openPullRequest(entry, json);
     }
 
-    private RegistryEntry compose(PluginSubject subject) throws IOException {
+    /**
+     * The version the entry publishes, which is the version the registry's gate resolves from JitPack.
+     *
+     * <p><b>The newest git tag, not the pom's {@code <version>}, and that is a correction rather than a
+     * preference.</b> JitPack builds a tag on demand and serves the result under that tag whatever the pom
+     * says — this project's own poms carry a cosmetic {@code 0.0.0-SNAPSHOT} for exactly that reason — so a
+     * pom version resolves only where it happens to equal the tag. {@code --tag} overrides both, for the
+     * author whose newest tag is not what they publish under.
+     */
+    private String publishedVersion(Path dir, Path pom) throws IOException {
+        if (tag != null && !tag.isBlank()) {
+            return tag.trim();
+        }
+        Optional<String> tag = Tags.newest(dir);
+        if (tag.isPresent()) {
+            return tag.get();
+        }
+        return Poms.coordinate(pom).version();
+    }
+
+    /**
+     * A snapshot is refused here rather than left to the gate, because the point is that the author sees it.
+     *
+     * <p>{@code botmaker new} generates {@code 0.1.0-SNAPSHOT}, so publishing straight after generating is
+     * the very first thing a new author does and produced an entry whose gate failed in the <em>registry's</em>
+     * CI. Returns the refusal, or {@code null} when there is nothing to refuse.
+     */
+    static String snapshotRefusal(String published) {
+        if (published == null || published.isBlank()) {
+            return "no version to publish: this working copy has no git tag and its pom declares no"
+                    + " <version>. Tag a release, or pass --tag <tag>.";
+        }
+        if (published.endsWith("-SNAPSHOT")) {
+            return "the version to publish is " + published + ", and JitPack cannot resolve a snapshot:"
+                    + " the registry's gate would download nothing. Tag a release (`git tag v0.1.0 && git"
+                    + " push --tags`) and re-run, or pass --tag <tag>.";
+        }
+        return null;
+    }
+
+    /**
+     * {@code gh repo view}, which is the cheapest possible statement of "this pointer points at something".
+     *
+     * <p>Only on a real run: {@code --dry-run} is the by-hand path taken when {@code gh} is unavailable, and
+     * a check that needs {@code gh} cannot be the thing that stops it.
+     */
+    private boolean repositoryExists(String ownerAndName) throws IOException {
+        Path here = Path.of(".").toAbsolutePath().normalize();
+        return gh(here, "repo", "view", ownerAndName, "--json", "name") == 0;
+    }
+
+    /**
+     * The gate's own first step, run locally.
+     *
+     * <p>{@link Subjects#fromCoordinate} is literally what {@code RegistryGate} calls, so a coordinate that
+     * will not resolve here is a pull request that cannot pass — and finding that out costs seconds where
+     * finding it out in CI costs a round trip. Not the full validation again: the checks have already run
+     * against this working copy, and what is being asked is only whether the world can download what the
+     * entry names.
+     */
+    private boolean resolves(RegistryEntry entry) {
+        Console console = parent.console();
+        String coordinate = entry.coordinate() + ":" + entry.verifiedVersion();
+        try {
+            parent.subjects().fromCoordinate(coordinate, Set.of(), Set.of());
+            return true;
+        } catch (IOException e) {
+            console.error("nobody can download " + coordinate + " yet, so the registry's gate could not"
+                    + " check it either:\n" + e.getMessage()
+                    + "\nPush the tag and let JitPack build it, then re-run.");
+            return false;
+        }
+    }
+
+    private RegistryEntry compose(PluginSubject subject, String published) throws IOException {
         Console console = parent.console();
         String id = "";
         String name = "";
@@ -149,10 +267,11 @@ final class PublishCommand implements Callable<Integer> {
                 List.of(tags.split("\\s*,\\s*")).stream().filter(t -> !t.isBlank()).toList(),
                 minContractVersion != null ? minContractVersion : contractVersion,
                 valueTypeIds,
-                // The version this working copy would publish under, which is the version the registry's
-                // gate will resolve and run the same checks against. A verifiedAt with no version beside it
-                // is a date attached to no artifact.
-                self.version(),
+                // The tag the world can download, which is the version the registry's gate will resolve and
+                // run the same checks against. A verifiedAt with no version beside it is a date attached to
+                // no artifact — and the pom's own <version>, which stood here until 2026-09-04, is a date
+                // attached to an artifact only JitPack's tag happens to agree with.
+                published,
                 LocalDate.now().toString());
     }
 

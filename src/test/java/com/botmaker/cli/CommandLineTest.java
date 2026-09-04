@@ -109,6 +109,19 @@ class CommandLineTest {
         assertTrue(parse("validate", "--quiet").subcommand().hasMatchedOption("--quiet"));
     }
 
+    /**
+     * {@code publish --tag} exists and is spelled that way.
+     *
+     * <p>{@code --version} is taken by {@code mixinStandardHelpOptions} on every command here, so this
+     * option cannot be called that; the test is here because the name is forced by something invisible at
+     * the call site, and renaming it back would fail at construction rather than at review.
+     */
+    @Test
+    void publish_takes_the_tag_it_will_publish_under() {
+        assertEquals("v1.2.0", parse("publish", "--tag", "v1.2.0").subcommand()
+                .matchedOptionValue("--tag", ""));
+    }
+
     /** The option `botmaker run` passes to Studio as a named JavaFX parameter. */
     @Test
     void run_takes_a_project_name() {

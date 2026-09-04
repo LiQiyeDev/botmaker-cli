@@ -91,6 +91,12 @@ botmaker publish --repo me/discord-notifier --description "Sends a message when 
                  --tags notifications --dry-run
 ```
 
+**The version in the entry is a git tag, not your pom's `<version>`.** JitPack builds a tag on demand and
+serves the artifact under that tag whatever the pom says, so the entry names the newest tag on your working
+copy; `--tag v1.2.0` overrides it. A `-SNAPSHOT` is refused here rather than in the registry's CI — a freshly
+generated plugin is `0.1.0-SNAPSHOT`, and nobody can download that. Before the pull request is opened, the
+coordinate is resolved exactly as the registry's gate will resolve it, and `--repo` is confirmed to exist.
+
 The pull request adds **one file**, `plugins/<plugin-id>.json` — the registry's `index.json` is generated
 from those files by its own CI and nobody edits it. So two authors publishing on the same day open two pull
 requests with no line in common, and a second plugin cannot take an id git already holds a file for.

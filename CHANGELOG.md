@@ -5,6 +5,28 @@ All notable changes to `botmaker-cli`.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this module uses
 [semantic versioning](https://semver.org/). `release.sh` refuses to cut a version with no section here.
 
+## [Unreleased]
+
+### Fixed
+
+- **`publish` no longer composes an entry the registry cannot resolve.** The entry's `verifiedVersion` was
+  the working pom's `<version>`, which is wrong twice over: a freshly generated plugin is
+  `0.1.0-SNAPSHOT` — `botmaker new`'s own default — and JitPack resolves no snapshot, so `botmaker new`
+  followed by `botmaker publish` produced a pull request whose gate failed in the *registry's* CI, which is
+  the one experience the two-caller design exists to prevent. Deeper: JitPack serves an artifact under the
+  **git tag**, and a pom `<version>` matches it only by coincidence. The entry now names the newest tag on
+  the working copy, `--tag <tag>` overrides it, and a `-SNAPSHOT` is refused by name with the sentence that
+  says what to do.
+- **`publish` follows its own pointers before opening a pull request.** The coordinate is resolved through
+  `Subjects.fromCoordinate` — literally the gate's first step — and `--repo` is confirmed with
+  `gh repo view`. A coordinate nobody can download and a repository nobody can visit are both refusals now,
+  and both cost seconds where finding out in CI costs a round trip.
+
+### Added
+
+- **`publish --tag <tag>`** — the published version the registry's gate will resolve. Spelled `--tag`
+  because `--version` is taken by the standard help mixin, and because what JitPack serves under is a tag.
+
 ## [0.0.2] — 2026-09-02
 
 ### Changed

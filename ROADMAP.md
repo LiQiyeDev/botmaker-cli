@@ -2,6 +2,15 @@
 
 ## Done
 
+### 2026-09-04 — `publish` follows its own pointers
+
+The entry's `verifiedVersion` was the working pom's `<version>` and is now the newest git tag. JitPack
+serves an artifact under the tag, so the pom version matched by coincidence at best — and in the ordinary
+case not at all: `botmaker new` generates `0.1.0-SNAPSHOT`, which JitPack cannot resolve, so publishing
+straight after generating produced a pull request that failed in the registry's CI. `--tag` overrides,
+`-SNAPSHOT` is refused by name, the coordinate is resolved through `Subjects.fromCoordinate` before the pull
+request is opened, and `--repo` is checked with `gh repo view`.
+
 ### 2026-09-02 — JDK 25 LTS
 
 `jitpack.yml` → `openjdk25`, the pom to `maven.compiler.release` 25, `javafx.version` → 25.0.4 (still
