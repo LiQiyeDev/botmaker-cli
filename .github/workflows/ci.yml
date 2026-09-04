@@ -126,18 +126,46 @@ jobs:
       #
       # The names are unversioned, the same rule the jar follows and for the same reason — the Pages
       # repository and `releases/latest/download/...` both need a path that does not move.
+      #
+      # THE RPM IS SIGNED HERE AND THE DEB IS NOT, which is dnf's rule rather than a choice: `gpgcheck` and
+      # `repo_gpgcheck` are two independent switches, the published botmaker.repo sets both, and the second
+      # one covers the index while the FIRST covers the package's own header. v0.0.3 shipped an unsigned
+      # package under a correctly-signed index and dnf refused the transaction at the last step. apt takes
+      # the index chain, so the deb needs nothing. See packaging/nfpm.yaml.
+      #
+      # The key is written out of the same GPG_PRIVATE_KEY secret the pages job imports — base64 of the
+      # armored private key, which is what nfpm's key_file wants directly, so there is no gpg import on
+      # this runner. With the secrets absent NFPM_RPM_KEY_FILE stays empty and nfpm builds an unsigned
+      # package, which is what a fork's tag build gets.
       - name: Build the rpm and the deb
         env:
           NFPM_VERSION: '2.43.0'
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          NFPM_RPM_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           curl -fsSL -o /tmp/nfpm.tar.gz \
             "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_Linux_x86_64.tar.gz"
           tar -xzf /tmp/nfpm.tar.gz -C /tmp nfpm
           # The tag, not the pom: this pom's <version> is the cosmetic 0.0.0-SNAPSHOT JitPack overrides.
           export BOTMAKER_VERSION="${GITHUB_REF_NAME#v}"
+          export NFPM_RPM_KEY_FILE=""
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            NFPM_RPM_KEY_FILE="${RUNNER_TEMP}/botmaker-signing.asc"
+            umask 077
+            echo "$GPG_PRIVATE_KEY" | base64 -d > "$NFPM_RPM_KEY_FILE"
+            export NFPM_RPM_KEY_FILE
+          else
+            echo "::warning::GPG_PRIVATE_KEY is unset — building an rpm that dnf will refuse under gpgcheck=1."
+          fi
           /tmp/nfpm package -f packaging/nfpm.yaml -p rpm -t target/botmaker.rpm
           /tmp/nfpm package -f packaging/nfpm.yaml -p deb -t target/botmaker.deb
+          rm -f "${RUNNER_TEMP}/botmaker-signing.asc"
           ls -la target/botmaker.rpm target/botmaker.deb
+          # No post-check that the signature is really on the package: nfpm exits 1 on every way signing can
+          # go wrong (`failed to create signatures: … private key checksum failure` for a bad passphrase,
+          # `reading PGP key file` for a missing one), so a green step already means a signed rpm. A check
+          # with `rpm -qp` would also make this step depend on the rpm tools being present on an Ubuntu
+          # runner, which is the thing packaging with nfpm exists to avoid.
 
       # The packages are what the dnf/apt repositories are built from, on a different runner.
       - name: Upload the packages

@@ -17,8 +17,10 @@
 #
 # SIGNING is at the repository level: repodata/repomd.xml.asc for dnf, a clearsigned InRelease plus a
 # detached Release.gpg for apt. That is a signature over the index, and an index carries the checksum of
-# every package it lists, so it is a signature over the payload as well — which is why the packages
-# themselves are not separately signed (see packaging/nfpm.yaml). With signing unconfigured the repository
+# every package it lists, so it is a signature over the payload as well — which is all apt asks for, and
+# is NOT all dnf asks for: `gpgcheck` covers the package's own header and `repo_gpgcheck` covers this
+# index, the generated botmaker.repo below sets both, and v0.0.3 satisfied only the second. The rpm is
+# signed in the release job now; see packaging/nfpm.yaml. With signing unconfigured the repository
 # is still built and the generated snippets turn the checks off, so what is published stays
 # self-consistent; that path is for dry runs, not for a real release.
 set -euo pipefail

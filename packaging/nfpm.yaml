@@ -16,11 +16,26 @@
 # JitPack overrides with the tag; the workflow sets BOTMAKER_VERSION from the tag that triggered it. The
 # same rule as jreleaser.yml's: never take a release version from anything in target/.
 #
-# THE PACKAGES ARE NOT SIGNED HERE, and that is not an omission. The dnf and apt repositories on GitHub
-# Pages sign their *indexes* — repomd.xml.asc and InRelease — and an index carries the checksum of the
-# package it lists, so a signed index is already a signature over the payload it points at. A second,
-# package-level signature would need the private key on this runner as a file and would verify the same
-# bytes twice. See .github/scripts/build-repo.sh.
+# THE RPM IS SIGNED AND THE DEB IS NOT, and the asymmetry is dnf's rather than a preference.
+#
+# This file used to sign neither, on the reasoning that the repositories on Pages sign their *indexes*
+# (repomd.xml.asc, InRelease), and an index carries the checksum of every package it lists — so a signed
+# index is already a signature over the payload. That chain is real, and apt accepts it: apt verifies
+# InRelease, and a package whose hash matches the index it just verified is trusted with no signature of
+# its own. **dnf does not.** `gpgcheck` and `repo_gpgcheck` are two independent switches — the second is
+# the index, the FIRST is the package's own header signature — and botmaker.repo sets both, so dnf
+# downloaded a correctly-signed index, matched the checksum, and then refused the transaction with
+# "Le paquet n'est pas signé" (v0.0.3, the first real install). The choices were to sign the package or to
+# publish gpgcheck=0, and turning a check off to fit a build is the wrong way round.
+#
+# So: NFPM_RPM_KEY_FILE points at the armored private key the workflow writes out of the GPG_PRIVATE_KEY
+# secret, and NFPM_RPM_PASSPHRASE unlocks it. Both unset (a fork, a local build) leaves key_file empty,
+# which nfpm reads as "do not sign" — the same tolerance build-repo.sh has, and for the same reason: an
+# unsigned dry run is useful, an unsigned release is not.
+#
+# The deb stays unsigned deliberately. debsigs signatures are not what apt checks — no apt on any
+# ordinary system verifies them — so producing one would add a second key handling path to satisfy nothing.
+# See .github/scripts/build-repo.sh.
 
 name: botmaker
 arch: all
@@ -51,6 +66,12 @@ contents:
     dst: /usr/share/doc/botmaker/README.md
   - src: LICENSE
     dst: /usr/share/doc/botmaker/LICENSE
+
+# Separate from `overrides.rpm` below, which is the dependency list: this is the rpm packager's own
+# configuration, and signing is the only thing in it.
+rpm:
+  signature:
+    key_file: ${NFPM_RPM_KEY_FILE}
 
 overrides:
   # A JRE, and 25 rather than 21: this module compiles with maven.compiler.release 25 (2026-09-02), so an

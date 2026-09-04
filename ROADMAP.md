@@ -7,10 +7,30 @@
 nfpm builds the rpm and the deb from `packaging/nfpm.yaml` in the `release` job, and a `pages` job lifted
 from Studio's republishes them as signed dnf/apt repositories. Both packages are small enough to host on
 Pages outright, which is the one place this differs from Studio's script (~240 MB there, so its rpm is
-metadata-only with a `--baseurl` rewrite). **Owed by the maintainer:** `GPG_KEY_ID` / `GPG_PRIVATE_KEY` /
-`GPG_PASSPHRASE` on this repository's secrets, and Pages set to "GitHub Actions" — without the first the
-repository still builds but publishes install snippets with the checks turned off, and without the second
-`deploy-pages` fails.
+metadata-only with a `--baseurl` rewrite).
+
+**Configured on 2026-09-04, and the three things it took are worth writing down, because a repository added
+later meets all three again.** `GPG_KEY_ID` / `GPG_PRIVATE_KEY` / `GPG_PASSPHRASE` are per-repository
+secrets — `LiQiyeDev` is a user account, not an organisation, so Studio's do not carry over and the key has
+to be re-exported; `GPG_PRIVATE_KEY` is base64 of the *armored private key* and must be **piped**
+(`gpg --export-secret-keys --armor <id> | base64 -w0 | gh secret set …`), because the blob is ~8 KB on one
+line and pasting it through a terminal loses part of it — the symptom is
+`gpg: no valid OpenPGP data found` in the `pages` job. Enabling Pages creates a `github-pages`
+**environment** whose deployment rules allow the default branch only, so a tag-triggered deploy is refused
+with `Tag "v0.0.3" is not allowed to deploy to github-pages due to environment protection rules`; the fix is
+a second rule of type *tag* matching `v*` (Settings ▸ Environments ▸ `github-pages`), which is what
+`botmaker-studio` already had.
+
+### 2026-09-04 — the rpm is signed, because dnf checks two things
+
+`v0.0.3` was the first real install and it failed at the last step: a correctly-signed index over an
+unsigned package. `gpgcheck` and `repo_gpgcheck` are independent, the generated `botmaker.repo` sets both,
+and only the second was being satisfied. The reasoning that produced the gap is sound and is exactly why it
+is recorded rather than quietly patched — `repomd.xml.asc` covers `primary.xml`, which carries the rpm's
+checksum, so the index signature *is* a signature over the payload, and **apt accepts that chain**. dnf
+does not. nfpm signs the header from `NFPM_RPM_KEY_FILE`, written in the workflow out of the same
+`GPG_PRIVATE_KEY` secret; with it unset nfpm builds an unsigned package rather than failing, which is a
+fork's tag build. The deb stays unsigned: no ordinary apt verifies a debsigs signature.
 
 ### 2026-09-04 — `botmaker bot`, the half of the platform with no command
 

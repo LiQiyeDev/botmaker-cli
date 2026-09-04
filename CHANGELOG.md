@@ -5,6 +5,23 @@ All notable changes to `botmaker-cli`.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this module uses
 [semantic versioning](https://semver.org/). `release.sh` refuses to cut a version with no section here.
 
+## [Unreleased]
+
+### Fixed
+
+- **The rpm is signed, so `sudo dnf install botmaker` completes.** `v0.0.3` published a correctly-signed
+  *index* over an unsigned *package*, and dnf refused the transaction at its last step —
+  `La vérification OpenPGP du paquet "botmaker-0.0.3-1.noarch" … a échoué : Le paquet n'est pas signé`,
+  after downloading 2.6 MB. The reasoning behind not signing was that `repomd.xml.asc` covers
+  `primary.xml`, which carries the package's checksum, so the index signature is already a signature over
+  the payload. That chain is real and **apt accepts it**; dnf does not, because `gpgcheck` and
+  `repo_gpgcheck` are two independent switches and the published `botmaker.repo` sets both — the first is
+  the package's own header signature and nothing was producing one. nfpm now signs the rpm header with the
+  same key the repository indexes are signed with (`NFPM_RPM_KEY_FILE` written from the existing
+  `GPG_PRIVATE_KEY` secret), and a signing failure is a red job rather than a package that installs
+  everywhere except under this project's own repository. The deb stays unsigned deliberately: debsigs
+  signatures are not what apt checks.
+
 ## [0.0.3] — 2026-09-04
 
 ### Added
