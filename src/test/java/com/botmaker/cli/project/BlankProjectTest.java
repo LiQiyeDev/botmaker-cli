@@ -35,6 +35,24 @@ class BlankProjectTest {
     }
 
     /**
+     * The compiler release is a fixed number and never the running JVM's. A project written here is one
+     * {@code bot publish} away from being a template somebody else downloads, and the first one published
+     * was composed on a Java 27 box: every author on 25 would have met
+     * {@code release version 27 not supported} on a project containing one {@code println}.
+     */
+    @Test
+    void the_blank_pom_targets_the_platform_not_this_jvm() {
+        String pom = BlankProject.files("gamebot", "com.gamebot").get("pom.xml");
+
+        assertTrue(pom.contains("<maven.compiler.release>" + BlankProject.PLATFORM_RELEASE
+                + "</maven.compiler.release>"), pom);
+        assertFalse(pom.contains("<maven.compiler.release>" + Runtime.version().feature()
+                        + "</maven.compiler.release>")
+                        && Runtime.version().feature() != BlankProject.PLATFORM_RELEASE,
+                "the running JVM's feature version reached the pom:\n" + pom);
+    }
+
+    /**
      * The repositories stay, which is what lets a blank project <em>become</em> a bot without anybody
      * hand-editing XML — Manage Plugins adds the SDK as an ordinary dependency and it resolves.
      */

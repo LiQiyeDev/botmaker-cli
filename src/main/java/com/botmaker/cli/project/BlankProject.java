@@ -128,6 +128,23 @@ public final class BlankProject {
         }
     }
 
+    /**
+     * The {@code maven.compiler.release} a generated pom declares, and a fixed number rather than
+     * {@link Runtime.Version#feature()}.
+     *
+     * <p>Studio's {@code MavenService} writes the running feature version, and there that is right: it
+     * creates a project on the machine that will build it. A project created <em>here</em> travels — it is
+     * one {@code bot publish} away from being a template somebody else downloads — so the running JVM is
+     * the one thing that must not reach the file. The first template published from this command was
+     * composed on a Java 27 box and would have declared {@code release 27} to every author on 25, whose
+     * build answers {@code release version 27 not supported} for a project containing one
+     * {@code println}.
+     *
+     * <p>25 because it is the platform's own baseline: the SDK, the contract and Studio all compile with
+     * it, so nothing a bot can reach needs a newer one, and a newer JDK compiles it happily.
+     */
+    static final int PLATFORM_RELEASE = 25;
+
     private static String pomXml(String name, String packageName) {
         return """
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -177,7 +194,7 @@ public final class BlankProject {
                         </dependency>
                     </dependencies>
                 </project>
-                """.formatted(packageName, name, Runtime.version().feature());
+                """.formatted(packageName, name, PLATFORM_RELEASE);
     }
 
     private static String mainClass(String packageName, String className) {
