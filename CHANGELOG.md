@@ -5,6 +5,26 @@ All notable changes to `botmaker-cli`.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this module uses
 [semantic versioning](https://semver.org/). `release.sh` refuses to cut a version with no section here.
 
+## [Unreleased]
+
+### Fixed
+
+- **`0.0.9`'s pins were right and it lost a race instead.** `maven-shade-plugin` 3.5.1 and
+  `flatten-maven-plugin` 1.4.1 both ran on JitPack. The build then failed one step earlier than the
+  packaging it was cut to repair:
+
+  ```
+  Could not find artifact com.github.LiQiyeDev:botmaker-plugin-host:jar:v0.0.5 in jitpack.io
+  ```
+
+  This module's tag is pushed seconds after `botmaker-plugin-host`'s, and JitPack builds a pinned
+  dependency tag **on demand but does not queue** — so the cli build started while the plugin-host build
+  was still running and could not resolve it. A build result is cached per tag, so it stays failed forever
+  and only a new tag repairs it. `botmaker-plugin-host:v0.0.5` itself is fine and resolves clean.
+
+  The umbrella's `release.sh` now **waits between links of the chain by default** again
+  (`--no-wait-jitpack` opts out). Nothing in this module changed.
+
 ## [0.0.9] — 2026-09-05
 
 ### Fixed
