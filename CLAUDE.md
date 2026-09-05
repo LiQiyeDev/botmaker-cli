@@ -102,12 +102,19 @@ feeding JReleaser the release body — and a release whose notes are extracted b
 that gated it can pass the gate and publish something else. Porting it into Java would create exactly the
 second implementation that file exists to prevent. Only this caller passes `--allow-unreleased`.
 
+**One gate's implementation moved rather than being invoked, and the test for that is not portability.**
+`check_jitpack_plugins` was an inline `python3` heredoc with no other reader, so porting it (`MavenPrerequisite`)
+creates no second copy of anything and stops a release depending on `python3` being installed.
+`check_changelog` reads a markdown file and is *more* portable, and must not be ported, because its extractor
+has a second reader in another repository. **The question is never "could this be Java" — it is how many
+implementations the answer is allowed to have.**
+
 Landed: slice 1 (`Module`, `Version`, `Level`, `Tags` = `latest_version`, `VersionSpec` = `resolve_version`,
 `Git`), slice 2 (`Relevance` = `is_release_irrelevant`, `ChangeKind`, `ReleaseDecision` = `should_release`),
-slice 3 (`Forcing`, `Order`, `DepTag`) and **half of slice 4** — `GateVerdict`, `GatePlan`, `CiDepsGate`,
-`ChangelogGate`, `Proc`. Still the script's: `check_api_pointers`, `check_sdk_plugin` and
-`check_jitpack_plugins` (each an invocation of `mvn`, the CLI's own jar, or `python3`), the decide pass
-itself, every write (5), and `verify_jitpack`/`--status` (6). **Nothing here pushes anything.**
+slice 3 (`Forcing`, `Order`, `DepTag`) and slice 4 (`GateVerdict`, `GatePlan`, `CiDepsGate`,
+`ChangelogGate`, `SdkGates`, `JitpackPluginsGate`, `MavenPrerequisite`, `Proc`). Still the script's: the
+decide pass itself — the loop that puts these together and prints the plan — every write (5), and
+`verify_jitpack`/`--status` (6). **Nothing here pushes anything.**
 
 ## Packaging — nfpm, and two things that are refused
 

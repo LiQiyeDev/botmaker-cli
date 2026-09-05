@@ -19,7 +19,7 @@
  * com.botmaker.cli.release.ReleaseRefusal}): the diff is over stdout, so a rephrased message is a failing
  * slice even when it refuses the same input for the same reason.
  *
- * <h2>What is here so far — slices 1 to 3, and half of 4</h2>
+ * <h2>What is here so far — slices 1 to 4</h2>
  *
  * <ul>
  *   <li>{@link com.botmaker.cli.release.Module} — the ten modules a tag can be cut for, with the flag
@@ -57,14 +57,21 @@
  *       module's own {@code tools/changelog-section.sh} rather than reading the file: that extractor has two
  *       readers in two repositories, and a second implementation of it is precisely what it exists to
  *       prevent.</li>
+ *   <li>{@link com.botmaker.cli.release.SdkGates} — {@code check_api_pointers} and
+ *       {@code check_sdk_plugin}, both invocations: Maven runs one test, and the CLI's own shaded jar
+ *       validates the SDK, because <i>this gate and {@code botmaker plugin validate} in an author's
+ *       terminal are one program</i>.</li>
+ *   <li>{@link com.botmaker.cli.release.JitpackPluginsGate} and
+ *       {@link com.botmaker.cli.release.MavenPrerequisite} — {@code check_jitpack_plugins}, the one gate
+ *       whose implementation moved rather than being invoked: it was an inline {@code python3} heredoc with
+ *       no other reader, so porting it creates no second copy of anything and drops a dependency on
+ *       {@code python3} being installed.</li>
  *   <li>{@link com.botmaker.cli.release.Proc} — one external command, which is what most of the script is
  *       and stays.</li>
  * </ul>
  *
  * <p>Still the script's, and not yet callable from here: the decide pass itself (the loop that puts these
- * pieces together and prints the plan), the three remaining gates —
- * {@code check_api_pointers} ({@code mvn}), {@code check_sdk_plugin} (build the CLI, run its validator over
- * the SDK) and {@code check_jitpack_plugins} ({@code python3} over each pinned plugin's own pom); every
+ * pieces together and prints the plan); every
  * write ({@code write_deps_env}, {@code stamp_changelog}, {@code commit_tag_push}, the pointer commit —
  * slice 5); and {@code verify_jitpack}, {@code poll_actions} and the release log (slice 6). Nothing in
  * this package pushes anything.

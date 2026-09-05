@@ -46,8 +46,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   `check_changelog` at an unreleased `9.9.9` both match line for line, including which three modules have an
   `## [Unreleased]` section and which six do not.
 
+- **Slice 4, second half — the gates that invoke a tool.** `SdkGates` (`check_api_pointers`,
+  `check_sdk_plugin`) and `JitpackPluginsGate` with `MavenPrerequisite`. The last of those is the one gate
+  whose *implementation* moved instead of being invoked: it was an inline `python3` heredoc with no second
+  reader, so porting it copies nothing and drops a dependency on `python3` being installed. It reads each
+  pinned plugin's own pom — from `~/.m2` first, Maven Central otherwise — resolves a `${property}`
+  prerequisite in that same pom, compares part by part against JitPack's Maven 3.6.1, and reports anything it
+  could not read as an **unknown that warns rather than refuses**. Verified against `release.sh` on the live
+  checkout: identical for all eight JitPack-built modules, per-module unknown counts included, and both SDK
+  gates identical too.
+
 ### Fixed
 
+- **`release.sh` would have refused every SDK release since 2026-09-05.** `check_sdk_plugin` ran
+  `java -jar … validate botmaker-sdk`, and the noun-first command tree made the bare verb a hidden
+  `MovedCommand` that prints its replacement and exits 2 — so the gate failed with a message about a command
+  line rather than about the SDK. It now runs `plugin validate`. Found by porting the gate.
+- **`-Dbotmaker.api.maxVersion` is documented and not passed.** The umbrella's `CLAUDE.md` said
+  `check_api_pointers` runs `ApiPointersTest` with it; the property went on 2026-08-27 with the `@Replaces`
+  back edge it bounded, and nothing has read it since. The port passes what the script passes and the
+  paragraph now says so.
 - `PomsTest.a_circular_property_terminates` asserted which of `${a}`/`${b}` survives a two-name property
   cycle. `Map.of`'s iteration order is randomised per JVM, so that is a coin flip; it passed for months and
   failed the first time an unrelated class changed surefire's ordering. It now asserts what the caller is

@@ -1,6 +1,7 @@
 package com.botmaker.cli.release;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -54,8 +55,29 @@ public final class Proc {
         }
     }
 
-    /** Whether a command is on {@code PATH} — the script's {@code command -v <tool>}. */
+    /**
+     * Whether a command is on {@code PATH} — the script's {@code command -v <tool>}.
+     *
+     * <p><b>Resolved by reading {@code PATH}, never by asking a shell.</b> The obvious spelling is
+     * {@code sh -c "command -v " + name}, and it is an injection: the name reaches a shell as source text,
+     * so a {@code ;} in it runs. Every caller here passes a literal, which is exactly the argument that
+     * stops being true later — and this package is a library with callers in three repositories. There is
+     * nothing a shell adds; {@code PATH} is a list of directories.
+     */
     public static boolean onPath(String command) {
-        return run(Path.of("."), "sh", "-c", "command -v " + command + " >/dev/null 2>&1").ok();
+        String path = System.getenv("PATH");
+        if (path == null || command.isBlank() || command.contains(java.io.File.separator)) {
+            return false;
+        }
+        for (String entry : path.split(java.io.File.pathSeparator)) {
+            if (entry.isBlank()) {
+                continue;
+            }
+            Path candidate = Path.of(entry).resolve(command);
+            if (Files.isRegularFile(candidate) && Files.isExecutable(candidate)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
