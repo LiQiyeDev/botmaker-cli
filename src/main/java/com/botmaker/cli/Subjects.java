@@ -48,7 +48,7 @@ public final class Subjects {
         Path pom = dir.resolve("pom.xml");
         if (!Files.isRegularFile(pom)) {
             throw new IOException("no pom.xml in " + dir.toAbsolutePath()
-                    + " — point `botmaker validate` at a plugin project, or pass --coordinate G:A:V");
+                    + " — point `botmaker plugin validate` at a plugin project, or pass --coordinate G:A:V");
         }
         if (build) {
             console.step("Compiling…");

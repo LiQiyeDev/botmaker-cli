@@ -9,7 +9,7 @@ import java.util.List;
  * Everything this program prints.
  *
  * <p>Diagnostics go to {@code stderr} and results go to {@code stdout}, which is not decoration: a plugin
- * author pipes {@code botmaker publish --dry-run} into a file, and a progress line landing in that file
+ * author pipes {@code botmaker plugin publish --dry-run} into a file, and a progress line landing in that file
  * makes it not-JSON.
  */
 public final class Console {
@@ -62,7 +62,7 @@ public final class Console {
     /**
      * The same report, on {@code stderr}.
      *
-     * <p>For {@code botmaker publish}, whose <em>result</em> is the entry JSON: a report sharing that stream
+     * <p>For {@code botmaker plugin publish}, whose <em>result</em> is the entry JSON: a report sharing that stream
      * makes {@code --dry-run > entry.json} produce something no parser will read, which is exactly the
      * failure the stdout/stderr split above exists to prevent. Validation is a diagnostic there and the
      * entry is the answer.

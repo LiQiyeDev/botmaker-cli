@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 
 /**
- * {@code botmaker run} — build the plugin, put it in a bot project, and open Studio on it.
+ * {@code botmaker plugin run} — build the plugin, put it in a bot project, and open Studio on it.
  *
  * <p><b>The point is that no tag is pushed.</b> A plugin author's inner loop is otherwise: release, wait for
  * JitPack, bump a pin, reopen — for a one-character change to a label. This is the same property the SDK has
@@ -31,7 +31,7 @@ import java.util.concurrent.Callable;
         description = "No tag is pushed and nothing is released: mvn install puts the artifact in ~/.m2, "
                 + "and Maven checks ~/.m2 before JitPack.",
         mixinStandardHelpOptions = true)
-final class RunCommand implements Callable<Integer> {
+final class PluginRunCommand implements Callable<Integer> {
 
     /**
      * Where Studio keeps projects. Mirrors {@code studio/config/Constants.PROJECTS_ROOT}.
@@ -41,11 +41,11 @@ final class RunCommand implements Callable<Integer> {
      * duplication is safe in the way the repo's own rule allows: it is a constant a user can see and
      * override, not a behaviour two programs must agree on.
      */
-    private static final Path PROJECTS_ROOT =
+    static final Path PROJECTS_ROOT =
             Path.of(System.getProperty("user.home"), "BotMakerProjects");
 
     @ParentCommand
-    private Main parent;
+    private PluginCommand parent;
 
     @Option(names = "--dir", defaultValue = ".",
             description = "The plugin project. Default: ${DEFAULT-VALUE}")
@@ -68,7 +68,7 @@ final class RunCommand implements Callable<Integer> {
 
     @Override
     public Integer call() throws IOException {
-        Console console = parent.console();
+        Console console = parent.main().console();
         Path dir = Path.of(directory).toAbsolutePath().normalize();
         Path pluginPom = dir.resolve("pom.xml");
         if (!Files.isRegularFile(pluginPom)) {
@@ -78,7 +78,7 @@ final class RunCommand implements Callable<Integer> {
 
         if (!noBuild) {
             console.step("Installing the plugin into ~/.m2…");
-            Mvn.Result installed = parent.mvn().runInteractive(dir, "install", "-DskipTests");
+            Mvn.Result installed = parent.main().mvn().runInteractive(dir, "install", "-DskipTests");
             if (!installed.ok()) {
                 console.error("the plugin did not build");
                 return 1;
@@ -108,7 +108,7 @@ final class RunCommand implements Callable<Integer> {
      * a project Studio believes has changed every time.
      */
     private int addToProject(String projectName, Poms.Dependency plugin) throws IOException {
-        Console console = parent.console();
+        Console console = parent.main().console();
         Path project = PROJECTS_ROOT.resolve(projectName);
         Path pom = project.resolve("pom.xml");
         if (!Files.isRegularFile(pom)) {
@@ -132,7 +132,7 @@ final class RunCommand implements Callable<Integer> {
      * an umbrella checkout, run through {@code javafx:run} exactly as {@code CLAUDE.md} documents it.
      */
     private int launchStudio() throws IOException {
-        Console console = parent.console();
+        Console console = parent.main().console();
         String projectArg = projectName == null ? null : "--project=" + projectName;
 
         String checkout = umbrella != null ? umbrella : System.getenv("BOTMAKER_UMBRELLA");
@@ -141,7 +141,7 @@ final class RunCommand implements Callable<Integer> {
             if (projectArg != null) {
                 goals.add("-Djavafx.args=" + projectArg);
             }
-            Mvn.Result result = parent.mvn().runInteractive(Path.of(checkout), goals.toArray(String[]::new));
+            Mvn.Result result = parent.main().mvn().runInteractive(Path.of(checkout), goals.toArray(String[]::new));
             return result.ok() ? 0 : 1;
         }
 

@@ -12,13 +12,21 @@ import java.util.concurrent.Callable;
 /**
  * {@code botmaker} — the entry point.
  *
- * <p>Four verbs about a plugin, and — since 2026-09-04 — one noun about a bot ({@link BotCommand}). The
- * shape of the verb set is the argument for the tool existing at all: {@code new} and
+ * <p><b>Two nouns and two verbs.</b> {@link PluginCommand} and {@link BotCommand} are the two things a
+ * person creates here, each with its own {@code new} and {@code publish}; {@link DoctorCommand} and
+ * {@link CompletionCommand} are about the tool itself and belong to neither.
+ *
+ * <p>The shape of the plugin verb set is the argument for the tool existing at all: {@code new} and
  * {@code publish} are the two ends of a plugin's life, and {@code validate} and {@code run} are the loop in
  * between. Each of them is something an author can do today by hand — {@code mvn archetype:generate} with
  * eight properties, {@code mvn install} then a pom edit then a Studio launch, a hand-written
  * {@code index.json} row — and each is something they will get wrong the first time in a way that produces
  * no error until much later.
+ *
+ * <p>Those four sat at the top level until 2026-09-05, where they meant <em>plugin</em> and said so nowhere:
+ * a bot already had to spell its noun ({@code botmaker bot new}), so the bare {@code new} was the asymmetry.
+ * The rename is a break, taken while the tool is v0.x rather than carried as aliases forever; the old paths
+ * survive as {@link MovedCommand}, which runs nothing and names its replacement.
  *
  * <p><b>Exit codes are a contract, because CI reads them.</b> {@code 0} success, {@code 1} the thing failed,
  * {@code 2} the command line was wrong. A validation failure is {@code 1} and not {@code 2}: a plugin that
@@ -36,14 +44,14 @@ import java.util.concurrent.Callable;
  */
 @Command(
         name = "botmaker",
-        header = "The BotMaker plugin command.",
-        description = "Create a plugin, check it against the registry's own rules, try it in Studio, "
-                + "and submit it.",
+        header = "The BotMaker command.",
+        description = "Two nouns: `plugin` is what extends Studio, `bot` is what you build with it. "
+                + "Each can be created, tried and published.",
         mixinStandardHelpOptions = true,
         versionProvider = Main.ManifestVersion.class,
         synopsisSubcommandLabel = "<command>",
-        subcommands = {NewCommand.class, ValidateCommand.class, RunCommand.class, PublishCommand.class,
-                BotCommand.class, CompletionCommand.class})
+        subcommands = {PluginCommand.class, BotCommand.class, DoctorCommand.class, CompletionCommand.class,
+                MovedCommand.class})
 public final class Main implements Callable<Integer> {
 
     /**

@@ -5,6 +5,43 @@ All notable changes to `botmaker-cli`.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this module uses
 [semantic versioning](https://semver.org/). `release.sh` refuses to cut a version with no section here.
 
+## [Unreleased]
+
+### Changed
+
+- **The four plugin verbs moved under `botmaker plugin`, and this is a break.** `botmaker new`,
+  `validate`, `run` and `publish` are now `botmaker plugin new|validate|run|publish`. They always meant
+  *plugin* and said so nowhere — a bot already had to spell its noun (`botmaker bot new`), so the most-typed
+  verb in the program belonged to one of the two things a person creates here and `--help` was the only
+  place that fact was written down.
+
+  Taken as a break rather than as aliases: this is v0.x with an install base days old, and a permanent
+  second spelling of every verb is worse to carry than one rename. Every option, exit code and behaviour is
+  unchanged; only the path to each command moved.
+
+  The old paths are kept as **hidden aliases that run nothing** — each prints where its verb went and exits
+  2, the command line's own "that was wrong":
+
+  ```
+  $ botmaker validate
+  error: `botmaker validate` moved: use `botmaker plugin validate`. The four plugin verbs are under
+  `botmaker plugin`; a bot's are under `botmaker bot`.
+  ```
+
+  That is the whole value over deleting them, and it is why they are aliases of one command rather than four
+  files: picocli's own answer is `Unmatched argument: 'validate'`, which teaches nobody where the verb went.
+  They come out at 1.0.0.
+
+### Added
+
+- **`botmaker doctor`** — Java, Maven, `gh`, `gh auth`, `$BOTMAKER_STUDIO` and the projects root, answered
+  together. No new capability: every verb already reports the tool it is missing, *at the moment it is
+  needed*, which is halfway through the first real use — `plugin publish` finds there is no `gh` after
+  building, validating and resolving a coordinate. It reaches no network, changes nothing, and exits 1 only
+  for a missing **required** tool; `gh` and Studio are warnings, since `--dry-run` and `--umbrella` are real
+  answers. The Maven it names is the one the other verbs will run (`./mvnw` beats `$MAVEN_HOME` beats
+  `PATH`), read through `Mvn.executable` rather than probed a second time.
+
 ## [0.0.12] — 2026-09-05
 
 ### Fixed

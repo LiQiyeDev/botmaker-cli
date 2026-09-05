@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 
 /**
- * {@code botmaker new <name>} — the archetype, with the prompts already answered.
+ * {@code botmaker plugin new <name>} — the archetype, with the prompts already answered.
  *
  * <p><b>It shells to {@code botmaker-plugin-archetype} and carries no templates of its own.</b> The
  * generated shape is three dependency scopes, a services file, a palette and an editor, and every one of
@@ -29,7 +29,7 @@ import java.util.concurrent.Callable;
         description = "Every value below has a default derived from the artifact id, so the id alone is a "
                 + "working command line.",
         mixinStandardHelpOptions = true)
-final class NewCommand implements Callable<Integer> {
+final class PluginNewCommand implements Callable<Integer> {
 
     private static final String ARCHETYPE_GROUP = "com.github.LiQiyeDev";
     private static final String ARCHETYPE_ARTIFACT = "botmaker-plugin-archetype";
@@ -45,7 +45,7 @@ final class NewCommand implements Callable<Integer> {
     private static final String DEFAULT_BOTMAKER_VERSION = "main-SNAPSHOT";
 
     @ParentCommand
-    private Main parent;
+    private PluginCommand parent;
 
     @Parameters(index = "0", paramLabel = "<artifact-id>",
             description = "The Maven artifact id, and the directory name. e.g. discord-notifier")
@@ -89,7 +89,7 @@ final class NewCommand implements Callable<Integer> {
 
     @Override
     public Integer call() throws IOException {
-        Console console = parent.console();
+        Console console = parent.main().console();
         Path parentDir = Path.of(directory).toAbsolutePath().normalize();
         Path target = parentDir.resolve(name);
         if (Files.exists(target)) {
@@ -114,7 +114,7 @@ final class NewCommand implements Callable<Integer> {
                 "-DstudioApiVersion=" + studioApiVersion,
                 "-DtoolkitVersion=" + toolkitVersion));
 
-        Mvn.Result result = parent.mvn().runInteractive(parentDir, goals.toArray(String[]::new));
+        Mvn.Result result = parent.main().mvn().runInteractive(parentDir, goals.toArray(String[]::new));
         if (!result.ok()) {
             console.error("mvn archetype:generate failed");
             return 1;
@@ -123,7 +123,7 @@ final class NewCommand implements Callable<Integer> {
         console.out("");
         console.out("  cd " + name);
         console.out("  mvn verify         # the generated tests should pass unedited");
-        console.out("  botmaker validate  # the same seven checks the registry runs");
+        console.out("  botmaker plugin validate  # the same seven checks the registry runs");
         return 0;
     }
 

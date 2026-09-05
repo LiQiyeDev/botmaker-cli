@@ -16,7 +16,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 
 /**
- * {@code botmaker validate} — the seven checks, against a working copy or a published coordinate.
+ * {@code botmaker plugin validate} — the seven checks, against a working copy or a published coordinate.
  *
  * <p>This class is a <em>front end</em>: it resolves a subject, calls
  * {@link PluginValidator#validate(PluginSubject)} and prints. Every rule it appears to enforce lives in that
@@ -28,10 +28,10 @@ import java.util.concurrent.Callable;
         description = "A local pass is not a promise the pull request passes: two checks ask whether an id "
                 + "is already claimed, and only the registry's index holds those answers.",
         mixinStandardHelpOptions = true)
-final class ValidateCommand implements Callable<Integer> {
+final class PluginValidateCommand implements Callable<Integer> {
 
     @ParentCommand
-    private Main parent;
+    private PluginCommand parent;
 
     @Parameters(index = "0", arity = "0..1", paramLabel = "<dir>",
             description = "The plugin project. Default: the working directory")
@@ -50,13 +50,13 @@ final class ValidateCommand implements Callable<Integer> {
 
     @Override
     public Integer call() throws IOException {
-        Console console = parent.console();
+        Console console = parent.main().console();
         PluginSubject subject;
         if (coordinate != null) {
-            subject = parent.subjects().fromCoordinate(coordinate, Set.of(), Set.of());
+            subject = parent.main().subjects().fromCoordinate(coordinate, Set.of(), Set.of());
         } else {
             String directory = dirArgument != null ? dirArgument : dirOption != null ? dirOption : ".";
-            subject = parent.subjects()
+            subject = parent.main().subjects()
                     .fromDirectory(Path.of(directory).toAbsolutePath().normalize(), !noBuild);
         }
 

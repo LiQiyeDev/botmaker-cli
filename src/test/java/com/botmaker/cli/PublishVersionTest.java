@@ -32,7 +32,7 @@ class PublishVersionTest {
 
     @Test
     void a_snapshot_is_refused_and_the_refusal_names_the_way_out() {
-        String refusal = PublishCommand.snapshotRefusal("0.1.0-SNAPSHOT");
+        String refusal = PluginPublishCommand.snapshotRefusal("0.1.0-SNAPSHOT");
 
         assertNotNull(refusal, "a snapshot must not reach the registry");
         assertTrue(refusal.contains("0.1.0-SNAPSHOT"), refusal);
@@ -41,14 +41,14 @@ class PublishVersionTest {
 
     @Test
     void no_version_at_all_is_refused_too() {
-        assertNotNull(PublishCommand.snapshotRefusal(""));
-        assertNotNull(PublishCommand.snapshotRefusal(null));
+        assertNotNull(PluginPublishCommand.snapshotRefusal(""));
+        assertNotNull(PluginPublishCommand.snapshotRefusal(null));
     }
 
     @Test
     void a_released_version_is_accepted() {
-        assertNull(PublishCommand.snapshotRefusal("v1.2.0"));
-        assertNull(PublishCommand.snapshotRefusal("1.2.0"));
+        assertNull(PluginPublishCommand.snapshotRefusal("v1.2.0"));
+        assertNull(PluginPublishCommand.snapshotRefusal("1.2.0"));
     }
 
     // ---- the contract version ---------------------------------------------------------------------------
@@ -61,7 +61,7 @@ class PublishVersionTest {
      */
     @Test
     void an_unresolved_property_is_refused_and_the_refusal_names_the_way_out() {
-        String refusal = PublishCommand.contractVersionRefusal("${botmaker.studioapi.version}");
+        String refusal = PluginPublishCommand.contractVersionRefusal("${botmaker.studioapi.version}");
 
         assertNotNull(refusal, "a property name must not reach the registry as a version");
         assertTrue(refusal.contains("${botmaker.studioapi.version}"), refusal);
@@ -72,7 +72,7 @@ class PublishVersionTest {
     /** A committed pom here says {@code 0.0.0-SNAPSHOT} because JitPack overrides it with the tag. */
     @Test
     void a_snapshot_contract_version_is_refused_too() {
-        String refusal = PublishCommand.contractVersionRefusal("0.0.0-SNAPSHOT");
+        String refusal = PluginPublishCommand.contractVersionRefusal("0.0.0-SNAPSHOT");
 
         assertNotNull(refusal);
         assertTrue(refusal.contains(".deps.env"),
@@ -81,14 +81,14 @@ class PublishVersionTest {
 
     @Test
     void no_contract_dependency_at_all_is_refused() {
-        assertNotNull(PublishCommand.contractVersionRefusal(""));
-        assertNotNull(PublishCommand.contractVersionRefusal(null));
+        assertNotNull(PluginPublishCommand.contractVersionRefusal(""));
+        assertNotNull(PluginPublishCommand.contractVersionRefusal(null));
     }
 
     @Test
     void a_resolved_contract_version_is_accepted() {
-        assertNull(PublishCommand.contractVersionRefusal("v0.0.4"));
-        assertNull(PublishCommand.contractVersionRefusal("0.0.4"));
+        assertNull(PluginPublishCommand.contractVersionRefusal("v0.0.4"));
+        assertNull(PluginPublishCommand.contractVersionRefusal("0.0.4"));
     }
 
     // ---- the tag ----------------------------------------------------------------------------------------

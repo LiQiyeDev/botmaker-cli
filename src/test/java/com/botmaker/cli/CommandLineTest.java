@@ -19,14 +19,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * worth re-proving here. What is worth proving is the surface: that the exit-code contract still holds
  * (0 / 1 / 2), that an option a command actually reads is an option the command line accepts, and that an
  * option nobody declared is <b>refused</b>. That last one is the reason the library is here at all: the
- * first real invocation of {@code botmaker new} passed {@code --botmaker-version}, which the hand-rolled
- * parser silently ignored, so the generated project was pinned to something else and nothing said so.
+ * first real invocation of {@code botmaker plugin new} passed {@code --botmaker-version}, which the
+ * hand-rolled parser silently ignored, so the generated project was pinned to something else and nothing
+ * said so.
  */
 class CommandLineTest {
 
     @Test
     void an_unknown_option_is_refused_and_named() {
-        Captured captured = capture(() -> Main.run(new String[]{"new", "x", "--botmaker-version", "1.2.3"}));
+        Captured captured = capture(
+                () -> Main.run(new String[]{"plugin", "new", "x", "--botmaker-version", "1.2.3"}));
 
         assertEquals(CommandLine.ExitCode.USAGE, captured.exitCode);
         assertTrue(captured.err.contains("--botmaker-version"),
@@ -36,7 +38,8 @@ class CommandLineTest {
     /** picocli's suggestion, which is the half that turns a refusal into a fix. */
     @Test
     void a_near_miss_suggests_the_option_that_was_meant() {
-        Captured captured = capture(() -> Main.run(new String[]{"new", "x", "--plugin-versio", "9"}));
+        Captured captured = capture(
+                () -> Main.run(new String[]{"plugin", "new", "x", "--plugin-versio", "9"}));
 
         assertTrue(captured.err.contains("--plugin-version"),
                 "expected a suggestion naming --plugin-version; got:\n" + captured.err);
@@ -47,9 +50,35 @@ class CommandLineTest {
         Captured captured = capture(() -> Main.run(new String[0]));
 
         assertEquals(CommandLine.ExitCode.USAGE, captured.exitCode);
-        for (String verb : new String[]{"new", "validate", "run", "publish", "bot"}) {
+        for (String verb : new String[]{"plugin", "bot", "doctor", "completion"}) {
             assertTrue(captured.out.contains(verb), "usage must list " + verb + "; got:\n" + captured.out);
         }
+    }
+
+    /**
+     * The four verbs that moved say so, and run nothing.
+     *
+     * <p>Exit 2 rather than 1: a verb that no longer exists is a command line that was wrong, not a plugin
+     * that failed to validate. And the message names the verb <em>as typed</em> — all four are aliases of
+     * one hidden command, so a reply naming picocli's primary name would tell three of the four users the
+     * wrong thing.
+     */
+    @Test
+    void the_moved_verbs_name_their_replacement_and_do_not_run() {
+        for (String verb : new String[]{"new", "validate", "run", "publish"}) {
+            Captured captured = capture(() -> Main.run(new String[]{verb, "whatever"}));
+
+            assertEquals(CommandLine.ExitCode.USAGE, captured.exitCode, verb);
+            assertTrue(captured.err.contains("botmaker plugin " + verb),
+                    "expected `" + verb + "` to point at `botmaker plugin " + verb + "`; got:\n"
+                            + captured.err);
+        }
+    }
+
+    /** {@code doctor} parses with no arguments — it asks about the machine, not about a project. */
+    @Test
+    void doctor_takes_no_arguments() {
+        assertEquals("doctor", parse("doctor").subcommand().commandSpec().name());
     }
 
     @Test
@@ -71,6 +100,9 @@ class CommandLineTest {
      * The completion script names every verb the command line has. That is the property a checked-in
      * script cannot hold: this test fails the day somebody adds a subcommand, which is exactly when a
      * hand-written script would have quietly stopped being complete.
+     *
+     * <p>Hidden commands are skipped on both sides — picocli leaves them out of the script, and the moved
+     * verbs are hidden precisely so nothing offers them.
      */
     @Test
     void the_completion_script_offers_every_verb_and_nothing_else() {
@@ -79,6 +111,9 @@ class CommandLineTest {
         assertEquals(0, captured.exitCode);
         assertTrue(captured.out.contains("complete -F _complete_botmaker"), captured.out);
         for (CommandLine sub : new CommandLine(new Main()).getSubcommands().values()) {
+            if (sub.getCommandSpec().usageMessage().hidden()) {
+                continue;
+            }
             assertTrue(captured.out.contains(sub.getCommandName()),
                     "the script does not mention " + sub.getCommandName() + ":\n" + captured.out);
         }
@@ -86,7 +121,7 @@ class CommandLineTest {
 
     @Test
     void a_missing_artifact_id_is_a_command_line_error_not_a_failure() {
-        Captured captured = capture(() -> Main.run(new String[]{"new"}));
+        Captured captured = capture(() -> Main.run(new String[]{"plugin", "new"}));
 
         assertEquals(CommandLine.ExitCode.USAGE, captured.exitCode);
     }
@@ -98,7 +133,7 @@ class CommandLineTest {
      */
     @Test
     void new_defaults_are_the_documented_ones() {
-        ParseResult verb = parse("new", "my-plugin").subcommand();
+        ParseResult verb = parse("plugin", "new", "my-plugin").subcommand().subcommand();
 
         assertEquals("my-plugin", verb.matchedPositionalValue(0, ""));
         // Not matchedOptionValue: an option nobody typed is not "matched", and the question here is what
@@ -113,17 +148,18 @@ class CommandLineTest {
     /** {@code validate} takes its directory either way, which is what the old hand-rolled parser did. */
     @Test
     void validate_accepts_the_directory_as_a_position_or_an_option() {
-        assertEquals("plugins/mine", parse("validate", "plugins/mine").subcommand()
-                .matchedPositionalValue(0, ""));
-        assertEquals("plugins/mine", parse("validate", "--dir", "plugins/mine").subcommand()
-                .matchedOptionValue("--dir", ""));
+        assertEquals("plugins/mine", parse("plugin", "validate", "plugins/mine")
+                .subcommand().subcommand().matchedPositionalValue(0, ""));
+        assertEquals("plugins/mine", parse("plugin", "validate", "--dir", "plugins/mine")
+                .subcommand().subcommand().matchedOptionValue("--dir", ""));
     }
 
     /** {@code --quiet} and {@code --debug} are inherited, so they parse after the verb as well as before. */
     @Test
     void the_global_flags_parse_on_either_side_of_the_verb() {
-        assertTrue(parse("--quiet", "validate").hasMatchedOption("--quiet"));
-        assertTrue(parse("validate", "--quiet").subcommand().hasMatchedOption("--quiet"));
+        assertTrue(parse("--quiet", "plugin", "validate").hasMatchedOption("--quiet"));
+        assertTrue(parse("plugin", "validate", "--quiet")
+                .subcommand().subcommand().hasMatchedOption("--quiet"));
     }
 
     /**
@@ -135,15 +171,15 @@ class CommandLineTest {
      */
     @Test
     void publish_takes_the_tag_it_will_publish_under() {
-        assertEquals("v1.2.0", parse("publish", "--tag", "v1.2.0").subcommand()
-                .matchedOptionValue("--tag", ""));
+        assertEquals("v1.2.0", parse("plugin", "publish", "--tag", "v1.2.0")
+                .subcommand().subcommand().matchedOptionValue("--tag", ""));
     }
 
     /**
      * {@code bot} is a noun with two verbs under it, and both parse two levels deep.
      *
-     * <p>{@code bot new} and {@code new} are different commands about different things — a bot and a plugin
-     * — which is exactly why the bot half is a noun rather than four more verbs.
+     * <p>{@code bot new} and {@code plugin new} are different commands about different things — a bot and a
+     * plugin — which is why both are spelled with their noun since 2026-09-05.
      */
     @Test
     void bot_has_its_own_new_and_publish() {
@@ -158,11 +194,11 @@ class CommandLineTest {
         assertEquals("v0.1.0", applied(botPublish, "--tag"));
     }
 
-    /** The option `botmaker run` passes to Studio as a named JavaFX parameter. */
+    /** The option `botmaker plugin run` passes to Studio as a named JavaFX parameter. */
     @Test
     void run_takes_a_project_name() {
-        assertEquals("MyBot", parse("run", "--project", "MyBot").subcommand()
-                .matchedOptionValue("--project", ""));
+        assertEquals("MyBot", parse("plugin", "run", "--project", "MyBot")
+                .subcommand().subcommand().matchedOptionValue("--project", ""));
     }
 
     /** The value a command will use for an option: what was typed, or the default the parse applied. */

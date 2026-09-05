@@ -96,7 +96,7 @@ public final class Mvn {
      * clearly enough, and a probe that ran {@code mvn --version} would cost a JVM start on every single
      * invocation to answer a question the next line answers for free.
      */
-    private static String executable(Path dir) {
+    static String executable(Path dir) {
         String wrapper = System.getProperty("os.name", "").toLowerCase().startsWith("windows")
                 ? "mvnw.cmd" : "mvnw";
         Path local = dir.resolve(wrapper);

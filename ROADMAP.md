@@ -40,6 +40,17 @@ the release, the archive check and the gallery pull request. The blank composer 
 deliberate duplicates of Studio's — an application cannot be depended on — and `gallery/GalleryEntry`
 mirrors Studio's for the reason `registry/RegistryEntry` mirrors the registry's.
 
+### 2026-09-05 — two nouns, and a `doctor`
+
+The four plugin verbs moved under `botmaker plugin`, so both halves of the platform spell their noun. A
+break rather than aliases: v0.x, and a second permanent spelling of every verb costs more than one rename.
+The old paths stay as hidden aliases of `MovedCommand`, which runs nothing and names the replacement —
+picocli's `Unmatched argument: 'validate'` is the alternative, and it teaches nobody where the verb went.
+
+`doctor` reports Java, Maven, `gh`, `gh auth`, `$BOTMAKER_STUDIO` and the projects root in one pass, with no
+network. It adds no capability: every verb already reports its missing tool, halfway through the first real
+use. The Maven it names is `Mvn.executable`'s answer, not a second implementation of that precedence.
+
 ### 2026-09-04 — `publish` follows its own pointers
 
 The entry's `verifiedVersion` was the working pom's `<version>` and is now the newest git tag. JitPack
@@ -59,7 +70,7 @@ validator, so it must never be older than this module's bytecode. Full account i
 
 ## Now
 
-The four verbs exist and `validate` is a library. What is unproven is the half that needs the other two
+Both nouns exist and `validate` is a library. What is unproven is the half that needs the other two
 repositories:
 
 - **`bot publish`'s real path has now run, and it found three defects the tests could not.**

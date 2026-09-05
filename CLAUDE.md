@@ -3,7 +3,7 @@
 Guidance for working in **botmaker-cli**, the `botmaker` command.
 
 Read the umbrella `../CLAUDE.md` first, then `../botmaker-plugin-host/CLAUDE.md` (this module's loader) and
-`../botmaker-plugin-archetype/CLAUDE.md` (what `botmaker new` generates). The plan this module comes from is
+`../botmaker-plugin-archetype/CLAUDE.md` (what `botmaker plugin new` generates). The plan this module comes from is
 phase 7 of the plugin-ecosystem plan.
 
 ## The one structural fact: two artifacts
@@ -35,7 +35,7 @@ accidentally depend on a parser, and `com.botmaker.cli.validate` cannot name one
 
 It replaced a hand-rolled `Args`, a usage text written as a Java text block and a table naming every option
 each verb accepts — **three statements of one fact, which had already disagreed**: the first real
-`botmaker new` passed `--botmaker-version`, which was silently ignored and generated a project pinned to
+`botmaker plugin new` passed `--botmaker-version`, which was silently ignored and generated a project pinned to
 something else. Add an option by adding a field; there is nowhere else to say it.
 
 ## Packaging — nfpm, and two things that are refused
@@ -62,11 +62,28 @@ not exist at image-build time.
 signature already covers the payload. A package-level signature would verify the same bytes twice and would
 need the private key on the build runner as a file.
 
-## `bot` is a noun, and the duplication under it is deliberate
+## Two nouns, and the duplication under `bot` is deliberate
 
-Four verbs about a **plugin**, one noun about a **bot** (2026-09-04). `botmaker bot new` and `botmaker new`
-are different commands about different things that share an English word, which is why the bot half is a
-noun rather than four more verbs.
+**`plugin` and `bot`, each with its own verbs (2026-09-05).** The four plugin verbs were the top level until
+then — `botmaker new`, `validate`, `run`, `publish` — and meant *plugin* while saying so nowhere, because
+the bot half already had to spell its noun. The most-typed verb in the program belonged to one of the two
+things a person creates here and `--help` was the only place that fact appeared.
+
+It was taken as a **break**, not as aliases: v0.x, an install base days old, and a permanent second spelling
+of every verb is worse to carry than one rename. `MovedCommand` holds the four old paths as *hidden* aliases
+of one command that **runs nothing** — it prints where the verb went and exits 2. The value over deleting
+them is the difference between `Unmatched argument: 'validate'` and ``moved: use `botmaker plugin
+validate` ``; delete the class at 1.0.0. Which alias was typed is read off the root's original arguments,
+since picocli reports the primary name and three of the four users would otherwise be told the wrong verb.
+
+`doctor` is the other new verb and belongs to neither noun. It reports Java, Maven (through
+`Mvn.executable`, so it names the Maven the other verbs will actually run), `gh`, `gh auth`,
+`$BOTMAKER_STUDIO` and the projects root. Nothing in it is a new capability — every verb already reports its
+own missing tool, *at the moment it is needed*, which is halfway through the first real use. It reaches no
+network, and only a missing **required** tool is exit 1.
+
+`botmaker bot new` and `botmaker plugin new` remain different commands about different things that share an
+English word, which is why both spell their noun.
 
 `project/BlankProject` re-writes Studio's `MavenService.blankPomXml` + `StarterSources`, and
 `gallery/Templates` re-writes its `TemplateProject`; `gallery/GalleryEntry` mirrors
@@ -97,7 +114,7 @@ exactly such a reason.
 which is what stood there until 2026-09-04. JitPack builds a tag on demand and serves the artifact under
 that tag whatever the pom says — this project's own poms carry the cosmetic `0.0.0-SNAPSHOT` for precisely
 that reason — so a pom version resolves only where it happens to equal the tag. Worse in the ordinary case:
-`botmaker new` generates `0.1.0-SNAPSHOT`, JitPack resolves no snapshot, and so *the first thing a new author
+`botmaker plugin new` generates `0.1.0-SNAPSHOT`, JitPack resolves no snapshot, and so *the first thing a new author
 does* produced an entry the gate could not download. A snapshot is now refused here, by name, with the
 sentence that says what to do; `--tag` overrides the lookup (`--version` is the help mixin's).
 
@@ -111,7 +128,7 @@ it. The snapshot refusal is *not* exempted there, because the dry run's stdout i
 `com.botmaker.cli.registry.RegistryGate` is what `botmaker-plugin-registry`'s CI runs on a pull request. It
 lives here for the same reason the validator is a library: **it must be the code the author already ran.**
 The registry's workflow resolves this module's *main* artifact and calls the gate; everything the gate adds
-on top of `botmaker validate` is what only the registry knows — the ids every other entry claims
+on top of `botmaker plugin validate` is what only the registry knows — the ids every other entry claims
 (`Registry.claimedValueTypeIds`, which fills the `PluginSubject` parameter a local run always leaves empty),
 the ids the **host's own bundled plugins** own (`Bundled`), and the rule that `index.json` is generated. A
 check belongs in `PluginValidator`, never here.
@@ -141,7 +158,7 @@ arrive as `@file` because a pull request chooses its own filenames — a path in
 `run:` line is a command injection.
 
 `Subjects` and `Mvn` are public for this one caller, and only `fromCoordinate`/`fromCoordinates` are: a
-working copy is the author's question, and the registry has none. `Console.reportAside` exists because `botmaker publish`'s
+working copy is the author's question, and the registry has none. `Console.reportAside` exists because `botmaker plugin publish`'s
 stdout is the entry JSON — `--dry-run > plugins/<id>.json` has to be a file a parser will read, which is the
 same stdout/stderr rule `Console` opens with.
 
@@ -158,7 +175,7 @@ lambda links its `(ValueContext)Node` method type when the list is built — so 
 skips, saying so.
 
 The half that is checked is the half that decides *which* editor a slot gets. The half that is not is seen
-the first time anyone clicks the slot, which is what `botmaker run` exists for.
+the first time anyone clicks the slot, which is what `botmaker plugin run` exists for.
 
 ## Why the stub contexts are written here
 
@@ -184,7 +201,7 @@ absent from a runtime classpath, which is exactly the set a host puts on the loa
 there would be resolved child-first and become a second `Class` object — the failure `provided` exists to
 prevent — and the validator would be testing something no host will ever run.
 
-## What `run` deliberately does not do
+## What `plugin run` deliberately does not do
 
 It does not create a bot project. Composing one means composing its pom, and **only the thing that knows the
 whole plugin set can write the file that names them** — that is `MavenService` in Studio, and the reversal

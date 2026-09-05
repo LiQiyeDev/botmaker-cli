@@ -25,7 +25,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 
 /**
- * {@code botmaker publish} — validate, then compose the registry entry and open the pull request.
+ * {@code botmaker plugin publish} — validate, then compose the registry entry and open the pull request.
  *
  * <p><b>The author never hand-edits anything in the registry.</b> Almost every field in an entry is something the
  * plugin already says about itself — its id, its display name, the value type ids it registers, the contract
@@ -55,12 +55,12 @@ import java.util.concurrent.Callable;
         description = "Almost every field of an entry is something the plugin already says about itself; "
                 + "what is genuinely yours — the repository, the description, the tags — is asked for here.",
         mixinStandardHelpOptions = true)
-final class PublishCommand implements Callable<Integer> {
+final class PluginPublishCommand implements Callable<Integer> {
 
     private static final String REGISTRY_REPO = "LiQiyeDev/botmaker-plugin-registry";
 
     @ParentCommand
-    private Main parent;
+    private PluginCommand parent;
 
     @Option(names = "--dir", defaultValue = ".",
             description = "The plugin project. Default: ${DEFAULT-VALUE}")
@@ -105,11 +105,12 @@ final class PublishCommand implements Callable<Integer> {
 
     @Override
     public Integer call() throws IOException {
-        Console console = parent.console();
+        Console console = parent.main().console();
         Path dir = Path.of(directory).toAbsolutePath().normalize();
         Path pom = dir.resolve("pom.xml");
         if (!Files.isRegularFile(pom)) {
-            throw new IOException("no pom.xml in " + dir + " — point `botmaker publish` at a plugin project");
+            throw new IOException(
+                    "no pom.xml in " + dir + " — point `botmaker plugin publish` at a plugin project");
         }
 
         // Before the compile, because both of these are refusals and a refusal the author waits a minute for
@@ -134,7 +135,7 @@ final class PublishCommand implements Callable<Integer> {
             return 1;
         }
 
-        PluginSubject subject = parent.subjects().fromDirectory(dir, !noBuild);
+        PluginSubject subject = parent.main().subjects().fromDirectory(dir, !noBuild);
 
         // Aside, on stderr: this command's stdout is the entry, and `--dry-run > entry.json` has to be a
         // file a parser will read.
@@ -154,7 +155,7 @@ final class PublishCommand implements Callable<Integer> {
                 console.warn("--repo <owner/name> was not given, so this is a dry run: the registry entry"
                         + " needs somewhere for a reader to go and look at the source.");
             }
-            // Nothing but the entry on stdout: `botmaker publish --dry-run > plugins/<id>.json` is the
+            // Nothing but the entry on stdout: `botmaker plugin publish --dry-run > plugins/<id>.json` is the
             // by-hand path when `gh` is unavailable, and a blank line makes that file not-JSON.
             console.out(json);
             return 0;
@@ -188,7 +189,7 @@ final class PublishCommand implements Callable<Integer> {
     /**
      * A snapshot is refused here rather than left to the gate, because the point is that the author sees it.
      *
-     * <p>{@code botmaker new} generates {@code 0.1.0-SNAPSHOT}, so publishing straight after generating is
+     * <p>{@code botmaker plugin new} generates {@code 0.1.0-SNAPSHOT}, so publishing straight after generating is
      * the very first thing a new author does and produced an entry whose gate failed in the <em>registry's</em>
      * CI. Returns the refusal, or {@code null} when there is nothing to refuse.
      */
@@ -226,10 +227,10 @@ final class PublishCommand implements Callable<Integer> {
      * entry names.
      */
     private boolean resolves(RegistryEntry entry) {
-        Console console = parent.console();
+        Console console = parent.main().console();
         String coordinate = entry.coordinate() + ":" + entry.verifiedVersion();
         try {
-            parent.subjects().fromCoordinate(coordinate, Set.of(), Set.of());
+            parent.main().subjects().fromCoordinate(coordinate, Set.of(), Set.of());
             return true;
         } catch (IOException e) {
             console.error("nobody can download " + coordinate + " yet, so the registry's gate could not"
@@ -292,7 +293,7 @@ final class PublishCommand implements Callable<Integer> {
 
     private RegistryEntry compose(PluginSubject subject, String published, String contractVersion)
             throws IOException {
-        Console console = parent.console();
+        Console console = parent.main().console();
         String id = "";
         String name = "";
         List<String> valueTypeIds = new ArrayList<>();
@@ -341,7 +342,7 @@ final class PublishCommand implements Callable<Integer> {
      * program has no business holding.
      */
     private int openPullRequest(RegistryEntry entry, String json) throws IOException {
-        Console console = parent.console();
+        Console console = parent.main().console();
         Path work = Files.createTempDirectory("botmaker-publish");
         Path clone = work.resolve("registry");
         // A fork only when a fork is needed: GitHub does not fork a repository into the account that owns
@@ -386,16 +387,16 @@ final class PublishCommand implements Callable<Integer> {
                 "Add " + entry.name() + " (" + entry.id() + ")", "--body",
                 "Adds `" + Registry.ENTRIES_DIRECTORY + "/" + entry.id() + ".json` — `"
                         + entry.coordinate() + ":" + entry.verifiedVersion() + "`.\n\n"
-                        + "Composed by `botmaker publish`, which runs the same checks this repository's CI"
+                        + "Composed by `botmaker plugin publish`, which runs the same checks this repository's CI"
                         + " runs.\n\n```json\n" + json + "\n```");
         return opened == 0 ? 0 : 1;
     }
 
     private int gh(Path dir, String... args) throws IOException {
-        return Shell.gh(parent.console(), dir, args);
+        return Shell.gh(parent.main().console(), dir, args);
     }
 
     private int run(Path dir, String... argv) throws IOException {
-        return Shell.run(parent.console(), dir, argv);
+        return Shell.run(parent.main().console(), dir, argv);
     }
 }

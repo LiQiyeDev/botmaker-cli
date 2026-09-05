@@ -28,7 +28,7 @@ import java.util.concurrent.Callable;
  *   <li><b>The release</b> — {@code gh release create}. This is the step that matters and the one nobody
  *       remembers: a bot is installed from its <em>release archive</em>, so a gallery entry with no release
  *       behind it is a 404 on somebody else's machine.</li>
- *   <li><b>The archive is fetched before anything points at it.</b> Same principle {@code botmaker publish}
+ *   <li><b>The archive is fetched before anything points at it.</b> Same principle {@code botmaker plugin publish}
  *       follows for a coordinate: do not publish a pointer nobody has followed.</li>
  *   <li><b>The gallery pull request</b> — fork, one file at {@code bots/<owner>-<repo>.json}, open it. One
  *       file per entry, never the generated index, so two authors publishing on the same day open two pull

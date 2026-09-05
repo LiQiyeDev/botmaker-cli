@@ -8,7 +8,8 @@ import java.util.concurrent.Callable;
 /**
  * {@code botmaker bot} — the second noun, and the half of the platform that had no command.
  *
- * <p>The four verbs beside it are all about a <b>plugin</b>: {@code new}, {@code validate}, {@code run},
+ * <p>The four verbs beside it are all about a <b>plugin</b> and live under {@link PluginCommand} since
+ * 2026-09-05: {@code new}, {@code validate}, {@code run},
  * {@code publish}. Every one of them automates something that already had a Studio UI or an obvious
  * {@code mvn} incantation. What had neither is the other half — a <b>bot</b>, and in particular a bot
  * published as a starting <b>template</b>. Since 2026-09-04 a blank project names no plugin, so the richer
@@ -17,8 +18,9 @@ import java.util.concurrent.Callable;
  * that order, with no error until an install failed on somebody else's machine.
  *
  * <p>A noun rather than four more verbs because {@code new} and {@code publish} already mean something here
- * and mean it about a plugin. {@code botmaker bot new} and {@code botmaker publish} being different commands
- * is the honest reading of two different things that happen to share an English word.
+ * and mean it about a plugin. {@code botmaker bot new} and {@code botmaker plugin new} being different
+ * commands is the honest reading of two different things that happen to share an English word — and this
+ * noun is why the plugin verbs eventually grew one of their own.
  */
 @Command(name = "bot",
         header = "Create and publish a bot project.",

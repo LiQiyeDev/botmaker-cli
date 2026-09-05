@@ -2,7 +2,7 @@
 # The `botmaker` command, as the packages install it at /usr/bin/botmaker.
 #
 # This is the whole gain over `java -jar botmaker-cli-all.jar`: /usr/bin is on every user's PATH, so
-# `botmaker validate` works in the directory the plugin is actually in rather than in whichever directory
+# `botmaker plugin validate` works in the directory the plugin is actually in rather than in whichever directory
 # the jar was downloaded to.
 #
 # `exec` so the JVM replaces this shell: one process, and Ctrl-C and the exit code reach the caller
