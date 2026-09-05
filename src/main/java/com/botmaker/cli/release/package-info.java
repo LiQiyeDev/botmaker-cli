@@ -19,7 +19,7 @@
  * com.botmaker.cli.release.ReleaseRefusal}): the diff is over stdout, so a rephrased message is a failing
  * slice even when it refuses the same input for the same reason.
  *
- * <h2>What is here so far — slices 1 to 5</h2>
+ * <h2>What is here so far — slices 1 to 6</h2>
  *
  * <ul>
  *   <li>{@link com.botmaker.cli.release.Module} — the ten modules a tag can be cut for, with the flag
@@ -78,12 +78,23 @@
  *       usable: the version is not knowable while the prose is written, so it is stamped a moment before
  *       the tag.</li>
  *   <li>{@link com.botmaker.cli.release.CommitTagPush} — commit, tag, push, idempotently.</li>
+ *   <li>{@link com.botmaker.cli.release.CleanRoom} — {@code resolve_clean_room}: a real
+ *       {@code dependency:resolve} from a throwaway repository, which is the only thing that catches a
+ *       published pom naming a dependency nobody can resolve.</li>
+ *   <li>{@link com.botmaker.cli.release.Actions} — {@code poll_actions}, the worst verdict of every
+ *       workflow a tag fired.</li>
+ *   <li>{@link com.botmaker.cli.release.ReleaseLog} — {@code releases/<YYYY-MM-DD-HHMM>.md}, rendered
+ *       whole every time so the two writers cannot leave a half-updated table.</li>
+ *   <li>{@link com.botmaker.cli.release.ReleaseStatus} — {@code --status}, re-polling both columns through
+ *       those same two readers.</li>
  * </ul>
  *
- * <p>Still the script's, and not yet callable from here: the decide pass itself — the loop that puts these
- * pieces together, prints the plan and drives the tag order — the umbrella's own pointer commit and
- * {@code push_branch}, and {@code verify_jitpack}, {@code poll_actions} and the release log with
- * {@code --status} (slice 6).
+ * <p><b>What is left is one thing, and it is the driver.</b> The decide pass itself — the loop that puts
+ * every piece above together, prints the plan, walks the tag order and stops on a refusal — plus the two
+ * top-level writes that belong to the umbrella rather than to a module ({@code push_branch} and the pointer
+ * commit) and {@code verify_jitpack}'s nudge-and-wait loop around {@link com.botmaker.cli.release.CleanRoom}.
+ * With that, {@code botmaker release} exists and the plan's cutover test — the script's {@code --dry-run}
+ * diffed against this library's — can run for the first time.
  *
  * <p><b>Nothing in this package has pushed anything yet, and that is now a fact about its callers rather
  * than about its code.</b> {@link com.botmaker.cli.release.CommitTagPush} can push; it is reached only

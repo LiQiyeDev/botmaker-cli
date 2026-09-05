@@ -118,10 +118,12 @@ discovered as a tag that exists.
 Landed: slice 1 (`Module`, `Version`, `Level`, `Tags` = `latest_version`, `VersionSpec` = `resolve_version`,
 `Git`), slice 2 (`Relevance` = `is_release_irrelevant`, `ChangeKind`, `ReleaseDecision` = `should_release`),
 slice 3 (`Forcing`, `Order`, `DepTag`), slice 4 (`GateVerdict`, `GatePlan`, `CiDepsGate`, `ChangelogGate`,
-`SdkGates`, `JitpackPluginsGate`, `MavenPrerequisite`, `Proc`) and slice 5 (`Runner`, `DepsEnv`, `Stamp`,
-`CommitTagPush`). Still the script's: the decide pass itself — the loop that puts these together, prints the
-plan and drives the tag order — the umbrella's pointer commit and `push_branch`, and
-`verify_jitpack`/`poll_actions`/`--status` (6).
+`SdkGates`, `JitpackPluginsGate`, `MavenPrerequisite`, `Proc`), slice 5 (`Runner`, `DepsEnv`, `Stamp`,
+`CommitTagPush`) and slice 6 (`CleanRoom`, `Actions`, `ReleaseLog`, `ReleaseStatus`).
+
+**What is left is the driver**: the decide pass loop that puts these together and prints the plan, the two
+umbrella-level writes (`push_branch` and the pointer commit), and `verify_jitpack`'s nudge-and-wait around
+`CleanRoom`. With those, `botmaker release` exists and the cutover diff can run.
 
 **Nothing here has pushed anything, and that is now a fact about the callers.** `CommitTagPush` can push; it
 is reachable only through a `Runner`, and nothing has handed it a real one. The first tag this library cuts

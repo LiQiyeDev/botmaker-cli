@@ -67,6 +67,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   six modules that write one, and `stamp_changelog` byte-identical too. **Nothing has pushed anything** — a
   push needs a real `Runner`, and no caller hands it one yet.
 
+- **Slice 6 — the record, and re-reading it.** `CleanRoom` is `resolve_clean_room`: a real
+  `dependency:resolve` from a throwaway repository, which is the only check that catches a published pom
+  naming a dependency nobody can resolve — a `HEAD` on the `.pom` answers a different question and
+  `dependency:tree` exits 0 on the failure. `Actions` is `poll_actions`, the worst verdict of every workflow
+  a tag fired, with `skipped` counting as fine and *no run at all* a finding (a tag is finished; nothing more
+  will fire). `ReleaseLog` renders `releases/<YYYY-MM-DD-HHMM>.md` whole every time, verdicts `pending`
+  because it is written the moment the last tag is pushed rather than after the poll, with errors in full
+  under the table rather than squeezed into a cell. `ReleaseStatus` is `--status`, re-polling both columns
+  through those same two readers so they cannot disagree about what *ok* means. Verified by re-rendering
+  **all eight committed `releases/*.md`** — every table byte-identical, including a seven-module release.
+
 ### Fixed
 
 - **`release.sh` would have refused every SDK release since 2026-09-05.** `check_sdk_plugin` ran
