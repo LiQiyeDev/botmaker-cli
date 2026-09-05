@@ -109,12 +109,23 @@ creates no second copy of anything and stops a release depending on `python3` be
 has a second reader in another repository. **The question is never "could this be Java" — it is how many
 implementations the answer is allowed to have.**
 
+**Every side effect goes through `Runner`, and a dry run is the same code path.** It decides, gates and
+computes exactly as a real run does, and echoes `    $ <command>` instead of executing — which is what makes
+`--dry-run` worth trusting rather than a second "preview" implementation that can drift. **A direct
+`Files.writeString` or `Git.run` on a write path is a line that ignores `--dry-run`**, and it would be
+discovered as a tag that exists.
+
 Landed: slice 1 (`Module`, `Version`, `Level`, `Tags` = `latest_version`, `VersionSpec` = `resolve_version`,
 `Git`), slice 2 (`Relevance` = `is_release_irrelevant`, `ChangeKind`, `ReleaseDecision` = `should_release`),
-slice 3 (`Forcing`, `Order`, `DepTag`) and slice 4 (`GateVerdict`, `GatePlan`, `CiDepsGate`,
-`ChangelogGate`, `SdkGates`, `JitpackPluginsGate`, `MavenPrerequisite`, `Proc`). Still the script's: the
-decide pass itself — the loop that puts these together and prints the plan — every write (5), and
-`verify_jitpack`/`--status` (6). **Nothing here pushes anything.**
+slice 3 (`Forcing`, `Order`, `DepTag`), slice 4 (`GateVerdict`, `GatePlan`, `CiDepsGate`, `ChangelogGate`,
+`SdkGates`, `JitpackPluginsGate`, `MavenPrerequisite`, `Proc`) and slice 5 (`Runner`, `DepsEnv`, `Stamp`,
+`CommitTagPush`). Still the script's: the decide pass itself — the loop that puts these together, prints the
+plan and drives the tag order — the umbrella's pointer commit and `push_branch`, and
+`verify_jitpack`/`poll_actions`/`--status` (6).
+
+**Nothing here has pushed anything, and that is now a fact about the callers.** `CommitTagPush` can push; it
+is reachable only through a `Runner`, and nothing has handed it a real one. The first tag this library cuts
+is a single-module release, watched end to end — that is the plan's discipline and it has not been spent.
 
 ## Packaging — nfpm, and two things that are refused
 

@@ -19,7 +19,7 @@
  * com.botmaker.cli.release.ReleaseRefusal}): the diff is over stdout, so a rephrased message is a failing
  * slice even when it refuses the same input for the same reason.
  *
- * <h2>What is here so far — slices 1 to 4</h2>
+ * <h2>What is here so far — slices 1 to 5</h2>
  *
  * <ul>
  *   <li>{@link com.botmaker.cli.release.Module} — the ten modules a tag can be cut for, with the flag
@@ -68,12 +68,27 @@
  *       {@code python3} being installed.</li>
  *   <li>{@link com.botmaker.cli.release.Proc} — one external command, which is what most of the script is
  *       and stays.</li>
+ *   <li>{@link com.botmaker.cli.release.Runner} — <b>every side effect, behind one switch.</b> A dry run
+ *       decides, gates and computes exactly as a real one does and echoes each command instead of running
+ *       it, which is what makes {@code --dry-run} worth trusting. Nothing in this package may write,
+ *       commit, tag or push except through it.</li>
+ *   <li>{@link com.botmaker.cli.release.DepsEnv} — {@code write_deps_env}, including the {@code git add}
+ *       whose absence tagged three modules with no {@code .deps.env} at all on 2026-09-02.</li>
+ *   <li>{@link com.botmaker.cli.release.Stamp} — {@code stamp_changelog}, the half that makes {@code --all}
+ *       usable: the version is not knowable while the prose is written, so it is stamped a moment before
+ *       the tag.</li>
+ *   <li>{@link com.botmaker.cli.release.CommitTagPush} — commit, tag, push, idempotently.</li>
  * </ul>
  *
- * <p>Still the script's, and not yet callable from here: the decide pass itself (the loop that puts these
- * pieces together and prints the plan); every
- * write ({@code write_deps_env}, {@code stamp_changelog}, {@code commit_tag_push}, the pointer commit —
- * slice 5); and {@code verify_jitpack}, {@code poll_actions} and the release log (slice 6). Nothing in
- * this package pushes anything.
+ * <p>Still the script's, and not yet callable from here: the decide pass itself — the loop that puts these
+ * pieces together, prints the plan and drives the tag order — the umbrella's own pointer commit and
+ * {@code push_branch}, and {@code verify_jitpack}, {@code poll_actions} and the release log with
+ * {@code --status} (slice 6).
+ *
+ * <p><b>Nothing in this package has pushed anything yet, and that is now a fact about its callers rather
+ * than about its code.</b> {@link com.botmaker.cli.release.CommitTagPush} can push; it is reached only
+ * through a {@link com.botmaker.cli.release.Runner}, and no caller has yet handed it a real one. The plan's
+ * discipline holds until then: the first tag cut by this library is a single-module release, watched end to
+ * end.
  */
 package com.botmaker.cli.release;

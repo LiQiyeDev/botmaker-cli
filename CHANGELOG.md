@@ -56,6 +56,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   checkout: identical for all eight JitPack-built modules, per-module unknown counts included, and both SDK
   gates identical too.
 
+- **Slice 5 — the writes.** `Runner` puts every side effect behind one switch: a dry run takes the same code
+  path and echoes `    $ <command>` instead of running it, so the plan on screen is produced by the code that
+  performs the release rather than by a second preview implementation. `DepsEnv` writes each module's
+  `.deps.env` — **including the `git add`**, whose absence tagged three modules with no `.deps.env` at all on
+  2026-09-02 and made every artifact of the new plugin platform unresolvable while the release reported
+  success. `Stamp` renames `## [Unreleased]`, idempotently, which is what makes `--all` usable. `CommitTagPush`
+  commits, tags and pushes, checking **both** the worktree and the index because a staged first-ever file is
+  invisible to `git diff --quiet`. Verified against `release.sh`: `write_deps_env` is byte-identical for all
+  six modules that write one, and `stamp_changelog` byte-identical too. **Nothing has pushed anything** — a
+  push needs a real `Runner`, and no caller hands it one yet.
+
 ### Fixed
 
 - **`release.sh` would have refused every SDK release since 2026-09-05.** `check_sdk_plugin` ran
