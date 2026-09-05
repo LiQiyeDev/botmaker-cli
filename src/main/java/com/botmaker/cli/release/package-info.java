@@ -89,12 +89,17 @@
  *       those same two readers.</li>
  * </ul>
  *
- * <p><b>What is left is one thing, and it is the driver.</b> The decide pass itself — the loop that puts
- * every piece above together, prints the plan, walks the tag order and stops on a refusal — plus the two
- * top-level writes that belong to the umbrella rather than to a module ({@code push_branch} and the pointer
- * commit) and {@code verify_jitpack}'s nudge-and-wait loop around {@link com.botmaker.cli.release.CleanRoom}.
- * With that, {@code botmaker release} exists and the plan's cutover test — the script's {@code --dry-run}
- * diffed against this library's — can run for the first time.
+ * <p>{@link com.botmaker.cli.release.Release} is the whole run, {@link com.botmaker.cli.release.Plan} the
+ * decide pass, {@link com.botmaker.cli.release.Gates} the gate loop,
+ * {@link com.botmaker.cli.release.Umbrella} the pointer commit and the branch pushes, and
+ * {@link com.botmaker.cli.release.Jitpack} the wait between tags. {@code botmaker release} is the terminal
+ * caller.
+ *
+ * <p><b>What is left is not code.</b> The plan's cutover test passes — the script's {@code --dry-run} and
+ * this library's agree across the flag matrix — and what remains is one real single-module release, cut
+ * through here and watched end to end, before {@code release.sh} is deleted. Until then a release from this
+ * package requires {@code --execute}, which is the inverse of the script's default on purpose: the port is
+ * what is on trial, and a tag is permanent.
  *
  * <p><b>Nothing in this package has pushed anything yet, and that is now a fact about its callers rather
  * than about its code.</b> {@link com.botmaker.cli.release.CommitTagPush} can push; it is reached only

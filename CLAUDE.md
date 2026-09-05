@@ -130,9 +130,17 @@ anything printed that the script does not print fails the diff.
 **The cutover matrix passes as of 2026-09-06**: `--all`, `--all minor`, `--sdk 1.2.0 --studio`, `--cli` and
 `--all --force` all give a plan block and a decide block identical to the script's.
 
-**What is left**: the two umbrella-level writes (`push_branch` and the pointer commit), `verify_jitpack`'s
-nudge-and-wait around `CleanRoom`, wiring the execute path to a real `Runner`, and then one real
-single-module release watched end to end before `release.sh` is deleted.
+`Release` is the whole run and there is **one path through it**: `--dry-run` is a `Runner`, not a branch, so
+a preview walks the writes, the log, the pointer commit and the pushes and echoes each command. `Umbrella`
+carries the pointer commit (with `releases/` in the same commit — what was released and whether it landed are
+one fact) and `push_branch`, umbrella last because its commit names submodule commits.
+
+**`--execute` is off by default, inverting the script**, where a real release is the default and `--dry-run`
+opts out. The port is what is on trial: until one real single-module release has been cut through it and
+watched, the safe default is the one that cannot burn a tag.
+
+**What is left is not code**: one real single-module release through `botmaker release --execute`, watched to
+a green `--status`, and then `release.sh` is deleted.
 
 **Nothing here has pushed anything, and that is now a fact about the callers.** `CommitTagPush` can push; it
 is reachable only through a `Runner`, and nothing has handed it a real one. The first tag this library cuts

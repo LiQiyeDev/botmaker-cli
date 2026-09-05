@@ -1,17 +1,10 @@
 package com.botmaker.cli;
 
-import com.botmaker.cli.release.ChangelogGate;
-import com.botmaker.cli.release.CiDepsGate;
-import com.botmaker.cli.release.GatePlan;
-import com.botmaker.cli.release.GateVerdict;
-import com.botmaker.cli.release.JitpackPluginsGate;
 import com.botmaker.cli.release.Module;
-import com.botmaker.cli.release.Plan;
+import com.botmaker.cli.release.Release;
 import com.botmaker.cli.release.ReleaseRefusal;
 import com.botmaker.cli.release.ReleaseStatus;
 import com.botmaker.cli.release.Runner;
-import com.botmaker.cli.release.SdkGates;
-import com.botmaker.cli.release.Version;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ParentCommand;
@@ -115,6 +108,22 @@ public final class ReleaseCommand implements Callable<Integer> {
     @Option(names = "--why", description = "Also say why each forced module is in the release.")
     private boolean why;
 
+    /**
+     * The one flag that pushes anything, and it is off.
+     *
+     * <p>Inverted relative to {@code release.sh}, where a real release is the default and {@code --dry-run}
+     * opts out. Here the port is what is on trial: until its {@code --dry-run} has agreed with the script's
+     * across the flag matrix <i>and</i> one real single-module release has been watched end to end, the
+     * safe default is the one that cannot burn a tag. A tag is permanent and no exit code recalls it.
+     */
+    @Option(names = "--execute",
+            description = "Actually cut the release: commit, tag, push. Off by default.")
+    private boolean execute;
+
+    @Option(names = "--no-wait-jitpack",
+            description = "Do not block on each JitPack build between tags.")
+    private boolean noWaitJitpack;
+
     @Option(names = "--status", arity = "0..1", fallbackValue = "", paramLabel = "<file>",
             description = "Re-poll a releases/*.md instead of planning (default: the newest).")
     private String status;
@@ -123,9 +132,13 @@ public final class ReleaseCommand implements Callable<Integer> {
             description = "The umbrella checkout (default: the current directory).")
     private Path umbrella = Path.of("").toAbsolutePath();
 
+    /** True unless {@code --no-wait-jitpack}: waiting costs minutes, losing the race burns a tag. */
+    private boolean wait;
+
     @Override
     public Integer call() {
-        Runner runner = Runner.preview();
+        Runner runner = execute ? Runner.real() : Runner.preview();
+        wait = !noWaitJitpack;
         try {
             if (!Files.isRegularFile(umbrella.resolve("release.sh"))) {
                 parent.console().error("not a botmaker umbrella checkout: " + umbrella);
@@ -149,75 +162,17 @@ public final class ReleaseCommand implements Callable<Integer> {
             parent.console().error("nothing to release — pass --all or a module flag.");
             return 2;
         }
-        Plan plan = Plan.decide(umbrella, requested, force);
-
-        runner.say("Release plan:");
-        plan.planLines().forEach(runner::say);
-        runner.say("Deciding what to release:");
-        plan.decisionLines().forEach(runner::say);
-
-        List<String> forcing = plan.forcingLines();
-        if (why && !forcing.isEmpty()) {
-            // release.sh keeps these as comments beside each decide call. A comment cannot be shown to the
-            // operator asking why a module they never named is being released — but printing them by
-            // default would break the cutover diff, so they are behind --why.
-            runner.say("Forced into this release:");
-            forcing.forEach(runner::say);
-        }
-
-        Map<Module, Version> releasing = plan.releasing();
-        if (releasing.isEmpty()) {
-            runner.say("Nothing to release.");
-            return 0;
-        }
-
-        runner.say("Gates:");
-        List<GateVerdict> refusals = gates(runner, releasing);
-
-        runner.say("Tag order:");
-        releasing.forEach((module, version) ->
-                runner.say("    " + module.directory() + " " + version.tag()));
-
-        if (!refusals.isEmpty()) {
-            refusals.forEach(refused -> parent.console().error(refused.refusal()));
+        Release.Outcome outcome = Release.run(runner, umbrella, requested, force, wait, why);
+        if (outcome.refused()) {
+            outcome.refusals().forEach(refused -> parent.console().error(refused.refusal()));
             return 1;
         }
-        runner.say("(preview only — release.sh still cuts the tags)");
+        if (!outcome.pushesOk()) {
+            // Reported, not fatal: by the time a branch push fails every tag is out and every CI job is
+            // running, so a non-zero exit would call a finished release failed.
+            parent.console().warn("a branch was not pushed — see the lines above.");
+        }
         return 0;
-    }
-
-    /**
-     * Runs every gate the plan calls for, printing each verdict and collecting the refusals.
-     *
-     * <p>All of them run even after one refuses: the operator is about to fix something and wants the whole
-     * list, not the first item of it. The script stops at the first {@code die}, which is the one place this
-     * deliberately reports more — a refusal is still a refusal, and the exit code is unchanged.
-     */
-    private List<GateVerdict> gates(Runner runner, Map<Module, Version> releasing) {
-        Set<Module> modules = releasing.keySet();
-        List<GateVerdict> refusals = new ArrayList<>();
-        for (Module module : GatePlan.changelog(modules)) {
-            record(runner, refusals, ChangelogGate.check(umbrella, module, releasing.get(module), force));
-        }
-        for (Module module : GatePlan.ciDeps(modules)) {
-            record(runner, refusals, CiDepsGate.check(umbrella, module, force));
-        }
-        for (Module module : GatePlan.jitpackPlugins(modules)) {
-            record(runner, refusals, JitpackPluginsGate.check(umbrella, module, force));
-        }
-        if (GatePlan.sdkGates(modules)) {
-            record(runner, refusals, SdkGates.apiPointers(umbrella, releasing.get(Module.SDK), force));
-            record(runner, refusals, SdkGates.sdkPlugin(umbrella, force));
-        }
-        return refusals;
-    }
-
-    private void record(Runner runner, List<GateVerdict> refusals, GateVerdict verdict) {
-        if (verdict.stops()) {
-            refusals.add(verdict);
-        } else if (!verdict.line().isBlank()) {
-            runner.say(verdict.line());
-        }
     }
 
     /** The flags, as module to spec. An explicit module beats {@code --all} — {@code release.sh}'s rule. */

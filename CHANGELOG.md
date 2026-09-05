@@ -89,6 +89,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   `--all`, `--all minor`, `--sdk 1.2.0 --studio`, `--cli` and `--all --force` all produce a plan block and a
   decide block identical to the script's.
 
+- **The port is feature-complete.** `Release` runs a whole release — decide, gate, tag in order, write the
+  log, verify, record the pointers, push the branches — and there is **one path through it**: `--dry-run` is
+  a `Runner`, not a branch, so a preview walks every step and echoes the commands. `Umbrella` adds the
+  pointer commit (carrying `releases/` in the same commit) and `push_branch`, umbrella last because its
+  commit names submodule commits the remote must already have. `Jitpack` adds the wait between tags, which
+  was removed in 2026-08 and put back on 2026-09-05: pinning refs exactly removes the *requirement* that an
+  upstream be published first, but *builds on demand* is not *queues and retries*, and a build result is
+  cached per tag — so losing the race burns a tag that cannot be reused. **`--execute` is off by default**,
+  the inverse of the script, because the port is what is on trial.
+
 ### Fixed
 
 - **`release.sh` would have refused every SDK release since 2026-09-05.** `check_sdk_plugin` ran
