@@ -121,9 +121,18 @@ slice 3 (`Forcing`, `Order`, `DepTag`), slice 4 (`GateVerdict`, `GatePlan`, `CiD
 `SdkGates`, `JitpackPluginsGate`, `MavenPrerequisite`, `Proc`), slice 5 (`Runner`, `DepsEnv`, `Stamp`,
 `CommitTagPush`) and slice 6 (`CleanRoom`, `Actions`, `ReleaseLog`, `ReleaseStatus`).
 
-**What is left is the driver**: the decide pass loop that puts these together and prints the plan, the two
-umbrella-level writes (`push_branch` and the pointer commit), and `verify_jitpack`'s nudge-and-wait around
-`CleanRoom`. With those, `botmaker release` exists and the cutover diff can run.
+`Plan` is the decide pass and `ReleaseCommand` is `botmaker release`, the third noun. **The command cannot
+cut a release**: it builds a preview `Runner` and has no flag that changes it, because the port is verified
+by diffing its output against `./release.sh --dry-run`'s and until those diffs are empty the script stays the
+only thing that pushes a tag. `--why` — the per-edge forcing reasons — is opt-in for the same reason:
+anything printed that the script does not print fails the diff.
+
+**The cutover matrix passes as of 2026-09-06**: `--all`, `--all minor`, `--sdk 1.2.0 --studio`, `--cli` and
+`--all --force` all give a plan block and a decide block identical to the script's.
+
+**What is left**: the two umbrella-level writes (`push_branch` and the pointer commit), `verify_jitpack`'s
+nudge-and-wait around `CleanRoom`, wiring the execute path to a real `Runner`, and then one real
+single-module release watched end to end before `release.sh` is deleted.
 
 **Nothing here has pushed anything, and that is now a fact about the callers.** `CommitTagPush` can push; it
 is reachable only through a `Runner`, and nothing has handed it a real one. The first tag this library cuts

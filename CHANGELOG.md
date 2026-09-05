@@ -78,6 +78,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   through those same two readers so they cannot disagree about what *ok* means. Verified by re-rendering
   **all eight committed `releases/*.md`** — every table byte-identical, including a seven-module release.
 
+- **`botmaker release` — the third noun, and the port's first caller.** `Plan` is the decide pass:
+  specs resolved off each module's own latest tag, the forcing rules applied in dependency order, a skipped
+  module's version cleared so everything downstream sees the final answer, then the gates and the tag order.
+  `ReleaseCommand` is a command line and nothing else. **It cannot cut a release** — it builds a preview
+  `Runner` and has no flag that changes that — because the port is verified by diffing its output against
+  `./release.sh --dry-run`'s, and until those diffs are empty the script stays the only thing that pushes a
+  tag. `--why` is the one addition, and it is opt-in for exactly that reason: printing the per-edge forcing
+  reasons by default would fail the diff on an improvement nobody objects to. **The cutover matrix passes**:
+  `--all`, `--all minor`, `--sdk 1.2.0 --studio`, `--cli` and `--all --force` all produce a plan block and a
+  decide block identical to the script's.
+
 ### Fixed
 
 - **`release.sh` would have refused every SDK release since 2026-09-05.** `check_sdk_plugin` ran
