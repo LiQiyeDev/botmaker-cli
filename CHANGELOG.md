@@ -7,6 +7,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **`com.botmaker.cli.release`, the first slice of `release.sh`'s port.** A library, not a command: the
+  release has three callers (a terminal, `release.yml` and `botmaker-dashboard`), CI cannot run a JavaFX
+  app, so the owner of these decisions is a package that prints nothing and knows no command line — the
+  same shape, and for the same reason, as `com.botmaker.cli.validate`. This slice carries the module
+  inventory (`Module`, ten flags derived from the directory names), the `x.y.z` arithmetic (`Version`,
+  `Level`) ordered as `sort -V` orders it rather than as text, `latest_version` (`Tags`) and
+  `resolve_version` (`VersionSpec`, a typed pair rather than a string every reader re-parses). Refusals
+  carry the script's own wording character for character, because each slice ships on its `--dry-run`
+  agreeing with the script's, not on being written. **Nothing in it pushes anything**; `release.sh` keeps
+  cutting every release until the whole port agrees.
+
 ### Changed
 
 - **The four plugin verbs moved under `botmaker plugin`, and this is a break.** `botmaker new`,

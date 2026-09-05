@@ -38,6 +38,34 @@ each verb accepts — **three statements of one fact, which had already disagree
 `botmaker plugin new` passed `--botmaker-version`, which was silently ignored and generated a project pinned to
 something else. Add an option by adding a field; there is nowhere else to say it.
 
+## `com.botmaker.cli.release` — `release.sh`, being ported into the library artifact
+
+**A second package with the same shape as `validate`, for the same reason.** The ordered cross-module
+release has three callers — a maintainer's terminal, `.github/workflows/release.yml` (`--ci`), and
+`botmaker-dashboard` — and CI cannot run a JavaFX app, so the owner of these decisions cannot be the GUI.
+It prints nothing, spawns no UI and knows no command line; everything that formats a line for a human
+belongs to the command that calls it.
+
+**Only five things are algorithms** — the decide pass, the bump arithmetic, `dep_tag`, the forcing rules and
+the tag order. The rest of `release.sh`'s 2016 lines shell to `git`, `gh`, `mvn` and `curl`, which Java does
+at two to three times the line count and no gain. Port the five; keep the rest as processes (`Git`).
+
+**No slice ships on being written — it ships on agreeing.** A wrong tag is permanent and no exit code
+recalls one, so each slice is verified by diffing both implementations' `--dry-run` over a matrix of flag
+combinations. That is why refusals carry the script's wording character for character (`ReleaseRefusal`):
+the diff is over stdout, so a reworded message fails the slice even when it refuses the same input for the
+same reason.
+
+**This package keeps the module list that `botmaker-dashboard` refuses to keep, and both are right**: the
+dashboard is a reader, so a copy there goes stale against the script; this is the owner being ported, so the
+list has to land somewhere. `Module`'s declaration order is the script's **flag** order and is deliberately
+not the **tag** order — the two differ so the two longest CI jobs are tagged first, and porting that is
+slice 3.
+
+Landed: slice 1 (`Module`, `Version`, `Level`, `Tags` = `latest_version`, `VersionSpec` = `resolve_version`,
+`Git`). Still the script's: the decide pass (2), the forcing rules and tag order (3), the gates (4), every
+write (5), and `verify_jitpack`/`--status` (6). **Nothing here pushes anything.**
+
 ## Packaging — nfpm, and two things that are refused
 
 `packaging/nfpm.yaml` builds `botmaker.rpm` and `botmaker.deb` from one description in the `release` job;
