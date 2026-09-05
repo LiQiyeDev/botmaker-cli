@@ -39,6 +39,29 @@ public final class Tags {
     }
 
     /**
+     * The ref name a version is actually tagged under in this checkout, or empty when neither spelling
+     * resolves.
+     *
+     * <p><b>Both spellings are probed rather than one assumed</b>, exactly as the script does: this project's
+     * tags are {@code v1.2.3} today and the SDK's older ones are bare {@code 1.2.3}. Assuming the prefix
+     * would make every module with an old tag look never-released, which {@code change_kind} reads as
+     * <i>release it</i> — the wrong direction to guess in, since the result is a tag.
+     *
+     * <p>Empty is <b>not</b> evidence that nothing changed. A version that {@code git tag --list} reported
+     * and {@code rev-parse} cannot resolve is a checkout this pass cannot reason about (a shallow clone, a
+     * tag pointing at an object that was never fetched), and both callers treat it as such.
+     */
+    public static Optional<String> existingRef(Path umbrella, Module module, Version version) {
+        Path dir = umbrella.resolve(module.directory());
+        for (String name : List.of(version.tag(), version.toString())) {
+            if (Git.run(dir, "rev-parse", "-q", "--verify", "refs/tags/" + name + "^{commit}").ok()) {
+                return Optional.of(name);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
      * The highest {@code x.y.z} among tag names, ignoring every tag that is not one.
      *
      * <p>Ignoring rather than refusing: a repository may carry tags this project did not cut, and a release

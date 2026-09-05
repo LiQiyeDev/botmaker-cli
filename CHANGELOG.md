@@ -19,6 +19,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   carry the script's own wording character for character, because each slice ships on its `--dry-run`
   agreeing with the script's, not on being written. **Nothing in it pushes anything**; `release.sh` keeps
   cutting every release until the whole port agrees.
+- **Slice 2 — what counts as something to release.** `Relevance` (`is_release_irrelevant`), a deny-list in
+  which markdown is never release-relevant at any depth and an unclassified file counts as a change;
+  `ChangeKind`, answering `REAL`/`DOCS`/`NONE` rather than a boolean, so a module whose only commits are
+  markdown is skipped *with the reason said* instead of reported as unchanged; and `ReleaseDecision`
+  (`should_release`), which carries the script's `SKIP_REASON` in its answer instead of a global. Verified
+  against the live checkout: the script's own `change_kind`, sourced out of `release.sh`, agrees with the
+  Java for all ten modules.
 
 ### Changed
 

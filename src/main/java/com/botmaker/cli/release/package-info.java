@@ -19,7 +19,7 @@
  * com.botmaker.cli.release.ReleaseRefusal}): the diff is over stdout, so a rephrased message is a failing
  * slice even when it refuses the same input for the same reason.
  *
- * <h2>What is here so far — slice 1</h2>
+ * <h2>What is here so far — slices 1 and 2</h2>
  *
  * <ul>
  *   <li>{@link com.botmaker.cli.release.Module} — the ten modules a tag can be cut for, with the flag
@@ -33,10 +33,17 @@
  *       a string every reader re-parses.</li>
  *   <li>{@link com.botmaker.cli.release.Git} — one external command. Only the five algorithms are ported;
  *       everything else stays a process.</li>
+ *   <li>{@link com.botmaker.cli.release.Relevance} — {@code is_release_irrelevant}: the deny-list that keeps
+ *       a markdown-only diff from cutting a tag whose artifact is byte-identical.</li>
+ *   <li>{@link com.botmaker.cli.release.ChangeKind} — {@code change_kind}, three answers rather than a
+ *       boolean, because <i>only docs</i> and <i>nothing at all</i> are different things to tell a
+ *       maintainer.</li>
+ *   <li>{@link com.botmaker.cli.release.ReleaseDecision} — {@code should_release}, carrying its
+ *       {@code SKIP_REASON} in the answer instead of a global.</li>
  * </ul>
  *
- * <p>Still the script's, and not yet callable from here: the decide pass and {@code change_kind}
- * (slice 2), {@code dep_tag}, the forcing rules and the tag order (slice 3), the gates (slice 4), every
+ * <p>Still the script's, and not yet callable from here: the decide pass's ordering and forcing,
+ * {@code dep_tag} and the tag order (slice 3), the gates (slice 4), every
  * write — {@code write_deps_env}, {@code stamp_changelog}, {@code commit_tag_push}, the pointer commit
  * (slice 5), and {@code verify_jitpack}, {@code poll_actions} and the release log (slice 6). Nothing in
  * this package pushes anything.

@@ -62,9 +62,23 @@ list has to land somewhere. `Module`'s declaration order is the script's **flag*
 not the **tag** order — the two differ so the two longest CI jobs are tagged first, and porting that is
 slice 3.
 
+**A tag exists to publish an artifact, so "changed" is not "some byte moved" — and that is `ChangeKind`.**
+It answers three things, not two: `REAL`, `DOCS` (commits exist, all of them markdown, so the tag would
+publish a byte-identical jar) and `NONE`. The middle one is the whole point — two modules nearly went out on
+2026-08-24 whose entire diff since their tags was the `CHANGELOG.md` the changelog gate itself had asked
+for — and it is a *sentence*, not a silent skip, because "no changes" would be a lie about a module that
+visibly has commits in it. `Relevance` is a **deny-list** and must stay one: an unclassified file counts as
+a change and gets released, which is the harmless direction to be wrong in.
+
+**Every failure to read a checkout answers `REAL`.** An unresolvable tag ref, a git that would not run —
+none of that is evidence that nothing changed, and the direction to guess in is the one that publishes a
+duplicate rather than the one that omits the change the release was cut for.
+
 Landed: slice 1 (`Module`, `Version`, `Level`, `Tags` = `latest_version`, `VersionSpec` = `resolve_version`,
-`Git`). Still the script's: the decide pass (2), the forcing rules and tag order (3), the gates (4), every
-write (5), and `verify_jitpack`/`--status` (6). **Nothing here pushes anything.**
+`Git`) and slice 2 (`Relevance` = `is_release_irrelevant`, `ChangeKind`, `ReleaseDecision` =
+`should_release`). Still the script's: the decide pass's ordering and forcing plus `dep_tag` and the tag
+order (3), the gates (4), every write (5), and `verify_jitpack`/`--status` (6). **Nothing here pushes
+anything.**
 
 ## Packaging — nfpm, and two things that are refused
 
