@@ -19,7 +19,7 @@
  * com.botmaker.cli.release.ReleaseRefusal}): the diff is over stdout, so a rephrased message is a failing
  * slice even when it refuses the same input for the same reason.
  *
- * <h2>What is here so far — slices 1 and 2</h2>
+ * <h2>What is here so far — slices 1 to 3</h2>
  *
  * <ul>
  *   <li>{@link com.botmaker.cli.release.Module} — the ten modules a tag can be cut for, with the flag
@@ -40,10 +40,18 @@
  *       maintainer.</li>
  *   <li>{@link com.botmaker.cli.release.ReleaseDecision} — {@code should_release}, carrying its
  *       {@code SKIP_REASON} in the answer instead of a global.</li>
+ *   <li>{@link com.botmaker.cli.release.Forcing} — the {@code forced} flags as <b>data with a reason per
+ *       edge</b>, which is the one place the port deliberately improves on the script: the reasons record
+ *       bugs that shipped, and a shell comment cannot be shown to the operator asking why a module they did
+ *       not name is in the plan.</li>
+ *   <li>{@link com.botmaker.cli.release.Order} — the decide order and the tag order, which are two
+ *       different orders and neither is {@code Module}'s own.</li>
+ *   <li>{@link com.botmaker.cli.release.DepTag} — {@code dep_tag}: the ref a downstream pins, which is the
+ *       version <i>this run</i> is cutting whenever there is one.</li>
  * </ul>
  *
- * <p>Still the script's, and not yet callable from here: the decide pass's ordering and forcing,
- * {@code dep_tag} and the tag order (slice 3), the gates (slice 4), every
+ * <p>Still the script's, and not yet callable from here: the decide pass itself (the loop that puts these
+ * pieces together and prints the plan), the gates (slice 4), every
  * write — {@code write_deps_env}, {@code stamp_changelog}, {@code commit_tag_push}, the pointer commit
  * (slice 5), and {@code verify_jitpack}, {@code poll_actions} and the release log (slice 6). Nothing in
  * this package pushes anything.

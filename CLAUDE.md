@@ -74,11 +74,24 @@ a change and gets released, which is the harmless direction to be wrong in.
 none of that is evidence that nothing changed, and the direction to guess in is the one that publishes a
 duplicate rather than the one that omits the change the release was cut for.
 
+**The forcing rules are data with a reason per edge, and that is the one deliberate improvement on the
+script.** `release.sh` spells them as an expression per module with the *why* in a comment above it. Every
+one of those reasons records a bug that shipped — JitPack's per-tag build cache, a published pom baked by
+flatten, a gate compiled against a different loader than Studio's — and a comment cannot be printed to the
+operator asking why a module they never named is in the plan. So `Forcing` is a list of
+`(upstream, downstream, reason)` and `forcedBy` returns every reason rather than one arbitrary winner. **The
+edge set itself is transcribed exactly**; adding or dropping one is a release that differs from the script's.
+
+**Three orders exist and none is a preference.** `Module`'s declaration order is the order `--help` lists the
+flags; `Order.DECIDE` is dependency order, which it must be because each forced flag reads the versions
+decided *so far*; `Order.TAG` puts the two longest CI jobs first (pilot, then studio) so they run while the
+JitPack chain is still going. Collapsing any two would look like tidying and cost a release.
+
 Landed: slice 1 (`Module`, `Version`, `Level`, `Tags` = `latest_version`, `VersionSpec` = `resolve_version`,
-`Git`) and slice 2 (`Relevance` = `is_release_irrelevant`, `ChangeKind`, `ReleaseDecision` =
-`should_release`). Still the script's: the decide pass's ordering and forcing plus `dep_tag` and the tag
-order (3), the gates (4), every write (5), and `verify_jitpack`/`--status` (6). **Nothing here pushes
-anything.**
+`Git`), slice 2 (`Relevance` = `is_release_irrelevant`, `ChangeKind`, `ReleaseDecision` = `should_release`)
+and slice 3 (`Forcing`, `Order`, `DepTag`). Still the script's: the decide pass itself — the loop that puts
+these together and prints the plan — the gates (4), every write (5), and `verify_jitpack`/`--status` (6).
+**Nothing here pushes anything.**
 
 ## Packaging — nfpm, and two things that are refused
 

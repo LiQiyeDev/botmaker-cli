@@ -26,6 +26,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   (`should_release`), which carries the script's `SKIP_REASON` in its answer instead of a global. Verified
   against the live checkout: the script's own `change_kind`, sourced out of `release.sh`, agrees with the
   Java for all ten modules.
+- **Slice 3 — what drags what, and in which order.** `Forcing`, the forced flags as data with **a reason per
+  edge** (the script keeps them as an expression with the why in a comment, and a comment cannot be shown to
+  the operator asking why a module they did not name is being released); `Order`, holding the decide order
+  and the tag order, which differ from each other and from the flag order; and `DepTag`, the ref a
+  downstream pins — the version *this run* is cutting whenever there is one, since that tag does not exist
+  yet when the `.deps.env` naming it is written. Verified against `release.sh` on the live checkout: the
+  forcing sets extracted from its own `decide` lines, the tag order read off its `commit_tag_push` sequence,
+  and `dep_tag` for all ten modules all match.
 
 ### Changed
 
