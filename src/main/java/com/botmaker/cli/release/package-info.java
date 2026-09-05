@@ -19,7 +19,7 @@
  * com.botmaker.cli.release.ReleaseRefusal}): the diff is over stdout, so a rephrased message is a failing
  * slice even when it refuses the same input for the same reason.
  *
- * <h2>What is here so far — slices 1 to 3</h2>
+ * <h2>What is here so far — slices 1 to 3, and half of 4</h2>
  *
  * <ul>
  *   <li>{@link com.botmaker.cli.release.Module} — the ten modules a tag can be cut for, with the flag
@@ -48,12 +48,25 @@
  *       different orders and neither is {@code Module}'s own.</li>
  *   <li>{@link com.botmaker.cli.release.DepTag} — {@code dep_tag}: the ref a downstream pins, which is the
  *       version <i>this run</i> is cutting whenever there is one.</li>
+ *   <li>{@link com.botmaker.cli.release.GateVerdict} and {@link com.botmaker.cli.release.GatePlan} — the
+ *       gates' four outcomes (a gate that <i>could not run</i> is not a gate that failed) and which module
+ *       gets which gate, all of them in the decide pass because a pushed tag cannot be edited.</li>
+ *   <li>{@link com.botmaker.cli.release.CiDepsGate} — {@code check_ci_deps}, ported whole: it reads two
+ *       files and answers, so there is nothing to shell to.</li>
+ *   <li>{@link com.botmaker.cli.release.ChangelogGate} — {@code check_changelog}, which <b>invokes</b> each
+ *       module's own {@code tools/changelog-section.sh} rather than reading the file: that extractor has two
+ *       readers in two repositories, and a second implementation of it is precisely what it exists to
+ *       prevent.</li>
+ *   <li>{@link com.botmaker.cli.release.Proc} — one external command, which is what most of the script is
+ *       and stays.</li>
  * </ul>
  *
  * <p>Still the script's, and not yet callable from here: the decide pass itself (the loop that puts these
- * pieces together and prints the plan), the gates (slice 4), every
- * write — {@code write_deps_env}, {@code stamp_changelog}, {@code commit_tag_push}, the pointer commit
- * (slice 5), and {@code verify_jitpack}, {@code poll_actions} and the release log (slice 6). Nothing in
+ * pieces together and prints the plan), the three remaining gates —
+ * {@code check_api_pointers} ({@code mvn}), {@code check_sdk_plugin} (build the CLI, run its validator over
+ * the SDK) and {@code check_jitpack_plugins} ({@code python3} over each pinned plugin's own pom); every
+ * write ({@code write_deps_env}, {@code stamp_changelog}, {@code commit_tag_push}, the pointer commit —
+ * slice 5); and {@code verify_jitpack}, {@code poll_actions} and the release log (slice 6). Nothing in
  * this package pushes anything.
  */
 package com.botmaker.cli.release;

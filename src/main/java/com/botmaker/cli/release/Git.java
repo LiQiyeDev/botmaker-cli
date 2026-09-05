@@ -1,6 +1,5 @@
 package com.botmaker.cli.release;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
@@ -35,28 +34,22 @@ public final class Git {
     private Git() {
     }
 
-    /** Runs {@code git -C <dir> <args…>} and captures everything it wrote. */
+    /**
+     * Runs {@code git -C <dir> <args…>} and captures everything it wrote.
+     *
+     * <p>{@code -C} rather than a working directory, exactly as the script spells it: a submodule's
+     * {@code .git} here is a {@code gitdir:} <i>file</i>, and the two are not equivalent for every command
+     * once worktrees are in play. Launching is {@link Proc}'s, so there is one place a missing tool becomes
+     * an exit code.
+     */
     public static Result run(Path dir, String... args) {
         String[] argv = new String[args.length + 3];
         argv[0] = "git";
         argv[1] = "-C";
         argv[2] = dir.toString();
         System.arraycopy(args, 0, argv, 3, args.length);
-        try {
-            Process process = new ProcessBuilder(argv).redirectErrorStream(true).start();
-            String out;
-            try (var stdout = process.getInputStream()) {
-                out = new String(stdout.readAllBytes());
-            }
-            return new Result(process.waitFor(), out);
-        } catch (IOException e) {
-            // No git on PATH, or no such directory. Both are answers a caller acts on rather than crashes
-            // over — the script reaches the same state as a non-zero exit with a message on stderr.
-            return new Result(127, e.getMessage() == null ? "" : e.getMessage());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return new Result(130, "interrupted");
-        }
+        Proc.Result result = Proc.run(Path.of("."), argv);
+        return new Result(result.exit(), result.out());
     }
 
     /** Stdout when the command succeeded, empty otherwise — a question rather than an action. */

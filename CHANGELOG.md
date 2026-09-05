@@ -34,6 +34,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   yet when the `.deps.env` naming it is written. Verified against `release.sh` on the live checkout: the
   forcing sets extracted from its own `decide` lines, the tag order read off its `commit_tag_push` sequence,
   and `dep_tag` for all ten modules all match.
+- **Slice 4, first half — the gates that read files.** `GateVerdict` gives a gate four outcomes rather than
+  two: a gate that **could not run** (no `mvn`, no `python3`, no `ci.yml`) is `SKIPPED` and does not stop a
+  release, and `--force` downgrades a failure to a `FORCED` line that still says it failed — but never
+  overrides a gate that could not run. `CiDepsGate` is `check_ci_deps` ported whole (it reads a pom and a
+  workflow and answers); `ChangelogGate` is `check_changelog`, which **invokes** each module's own
+  `tools/changelog-section.sh` rather than re-reading the file, because that extractor has two readers in two
+  repositories and a second implementation is what it exists to prevent. `GatePlan` holds the placement —
+  everything in the decide pass, pilot exempt from all three, studio exempt from the JitPack one only.
+  Verified against `release.sh` on the live checkout: `check_ci_deps` for all nine modules and
+  `check_changelog` at an unreleased `9.9.9` both match line for line, including which three modules have an
+  `## [Unreleased]` section and which six do not.
+
+### Fixed
+
+- `PomsTest.a_circular_property_terminates` asserted which of `${a}`/`${b}` survives a two-name property
+  cycle. `Map.of`'s iteration order is randomised per JVM, so that is a coin flip; it passed for months and
+  failed the first time an unrelated class changed surefire's ordering. It now asserts what the caller is
+  actually promised: the call returns, and the survivor is still visibly unresolved.
 
 ### Changed
 

@@ -149,10 +149,20 @@ class PomsTest {
         assertEquals("${nobody.defines.this}", Poms.interpolate("${nobody.defines.this}", properties));
     }
 
-    /** A pom that references itself must not hang the command reading it. */
+    /**
+     * A pom that references itself must not hang the command reading it.
+     *
+     * <p>Which of the two names survives is not specified and must not be asserted: {@code Map.of}'s
+     * iteration order is randomised per JVM, so a cycle of two ends on whichever one the last pass happened
+     * to substitute. Asserting {@code ${a}} passed for months and failed the first time an unrelated class
+     * was added, because surefire's class order changed the JVM it ran in. What the caller is promised is
+     * that this returns, and that the survivor is still visibly unresolved.
+     */
     @Test
     void a_circular_property_terminates() {
-        assertEquals("${a}", Poms.interpolate("${a}", java.util.Map.of("a", "${b}", "b", "${a}")));
+        String resolved = Poms.interpolate("${a}", java.util.Map.of("a", "${b}", "b", "${a}"));
+
+        assertTrue(resolved.equals("${a}") || resolved.equals("${b}"), resolved);
     }
 
     @Test

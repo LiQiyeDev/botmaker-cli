@@ -87,11 +87,27 @@ flags; `Order.DECIDE` is dependency order, which it must be because each forced 
 decided *so far*; `Order.TAG` puts the two longest CI jobs first (pilot, then studio) so they run while the
 JitPack chain is still going. Collapsing any two would look like tidying and cost a release.
 
+**A gate has four outcomes, not two, and the third is the one a port gets wrong.** `GateVerdict` is
+`OK | SKIPPED | FORCED | REFUSED`. **`SKIPPED` is "could not be checked" and must not stop a release** — no
+`mvn` on `PATH`, no `python3`, a module with no `ci.yml` — or every machine missing a tool becomes a machine
+that cannot release. `FORCED` is still printed and still distinguishable from a pass, because a maintainer
+reading the log later needs to know a gate was overruled rather than satisfied. And **`--force` overrides a
+gate that failed, never one that could not run**: an unmapped `${botmaker.X.version}` and a missing
+`tools/changelog-section.sh` are refused with `--force` in effect, because in both the gate does not know
+what it is looking at.
+
+**`ChangelogGate` invokes the module's own extractor and never reads `CHANGELOG.md` itself.**
+`<mod>/tools/changelog-section.sh` has two readers in two repositories — this gate, and the module's `ci.yml`
+feeding JReleaser the release body — and a release whose notes are extracted by a different rule than the one
+that gated it can pass the gate and publish something else. Porting it into Java would create exactly the
+second implementation that file exists to prevent. Only this caller passes `--allow-unreleased`.
+
 Landed: slice 1 (`Module`, `Version`, `Level`, `Tags` = `latest_version`, `VersionSpec` = `resolve_version`,
-`Git`), slice 2 (`Relevance` = `is_release_irrelevant`, `ChangeKind`, `ReleaseDecision` = `should_release`)
-and slice 3 (`Forcing`, `Order`, `DepTag`). Still the script's: the decide pass itself — the loop that puts
-these together and prints the plan — the gates (4), every write (5), and `verify_jitpack`/`--status` (6).
-**Nothing here pushes anything.**
+`Git`), slice 2 (`Relevance` = `is_release_irrelevant`, `ChangeKind`, `ReleaseDecision` = `should_release`),
+slice 3 (`Forcing`, `Order`, `DepTag`) and **half of slice 4** — `GateVerdict`, `GatePlan`, `CiDepsGate`,
+`ChangelogGate`, `Proc`. Still the script's: `check_api_pointers`, `check_sdk_plugin` and
+`check_jitpack_plugins` (each an invocation of `mvn`, the CLI's own jar, or `python3`), the decide pass
+itself, every write (5), and `verify_jitpack`/`--status` (6). **Nothing here pushes anything.**
 
 ## Packaging — nfpm, and two things that are refused
 
