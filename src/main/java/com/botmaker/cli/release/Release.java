@@ -75,7 +75,7 @@ public final class Release {
         }
 
         runner.say("Gates:");
-        List<GateVerdict> refusals = Gates.run(runner, umbrella, releasing, force);
+        List<GateVerdict> refusals = Gates.run(runner, umbrella, plan, force);
         if (!refusals.isEmpty()) {
             // Refused with nothing pushed, which is the only time a refusal is worth anything.
             return new Outcome(plan, refusals, Optional.empty(), true);

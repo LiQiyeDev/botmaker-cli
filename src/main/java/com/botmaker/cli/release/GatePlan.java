@@ -59,4 +59,12 @@ public final class GatePlan {
     public static boolean sdkGates(Set<Module> releasing) {
         return releasing.contains(Module.SDK);
     }
+
+    /**
+     * Whether the fallback-constant gate runs: only when this release cuts Studio, because the constants
+     * live in Studio's source and only a Studio release publishes a change to them.
+     */
+    public static boolean fallbackVersions(Set<Module> releasing) {
+        return releasing.contains(Module.STUDIO);
+    }
 }

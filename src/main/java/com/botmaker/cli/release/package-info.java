@@ -57,6 +57,15 @@
  *       module's own {@code tools/changelog-section.sh} rather than reading the file: that extractor has two
  *       readers in two repositories, and a second implementation of it is precisely what it exists to
  *       prevent.</li>
+ *   <li>{@link com.botmaker.cli.release.ForcingGate} and
+ *       {@link com.botmaker.cli.release.FallbackVersionsGate} — {@code check_forced_but_unrequested} and
+ *       {@code check_fallback_versions}, the two gates <b>added on 2026-09-06 rather than transcribed</b>,
+ *       and the exception to this package's own rule that the port changes nothing. They exist because
+ *       porting {@link com.botmaker.cli.release.Forcing} read the {@code decide} loop closely enough to
+ *       notice that a forcing edge only ever lifted a <i>skip</i> and could not add a module — so every
+ *       "an {@code --sdk} release forces Studio" in this project was documentation. It was already false
+ *       in production when it was noticed. Both were written into {@code release.sh} in the same commit,
+ *       word for word, so the cutover diff stays empty.</li>
  *   <li>{@link com.botmaker.cli.release.SdkGates} — {@code check_api_pointers} and
  *       {@code check_sdk_plugin}, both invocations: Maven runs one test, and the CLI's own shaded jar
  *       validates the SDK, because <i>this gate and {@code botmaker plugin validate} in an author's

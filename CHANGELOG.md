@@ -9,6 +9,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Two release gates that refuse a shape the forcing rules only ever documented.** `ForcingGate` refuses a
+  run that drags in a module nobody named: every "an `--sdk` release forces Studio" in this project rested
+  on the operator having typed both flags, because both implementations evaluate a module's `forced` flag
+  only for modules already on the command line. `botmaker release --sdk 1.1.6` cut the SDK alone on
+  2026-09-05, so the `sed` that moves `MavenService.SDK_FALLBACK_VERSION` never ran and Studio v1.0.37
+  shipped pinning the previous SDK. It refuses rather than pulling the module in, because a tag nobody
+  named cannot be un-pushed either; the refusal names the flag to add and quotes the edge's own reason.
+  `FallbackVersionsGate` is its companion: on a `--studio` release, `SDK_FALLBACK_VERSION` and
+  `TOOLKIT_FALLBACK_VERSION` must each name a tag that exists — those are pins Studio *writes* into a
+  generated bot's pom, so nothing in any build resolves them and no test can see one go wrong. It checks
+  existence, never which version is the right default, and exempts a module being cut in the same run.
+
 - **`com.botmaker.cli.release`, the first slice of `release.sh`'s port.** A library, not a command: the
   release has three callers (a terminal, `release.yml` and `botmaker-dashboard`), CI cannot run a JavaFX
   app, so the owner of these decisions is a package that prints nothing and knows no command line — the

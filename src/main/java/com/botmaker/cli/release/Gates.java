@@ -20,14 +20,22 @@ public final class Gates {
     }
 
     /**
-     * @param releasing the versions decided, because the changelog gate is asked about a specific one
+     * @param plan the decide pass's answer. The whole plan rather than just {@link Plan#releasing()},
+     *             because {@link ForcingGate} asks what was <i>requested</i> — a question a map of what is
+     *             being cut cannot answer.
      * @return the refusals, empty when the release may proceed
      */
-    public static List<GateVerdict> run(Runner runner, Path umbrella,
-                                        Map<Module, Version> releasing, boolean force) {
+    public static List<GateVerdict> run(Runner runner, Path umbrella, Plan plan, boolean force) {
+        Map<Module, Version> releasing = plan.releasing();
         Set<Module> modules = releasing.keySet();
         List<GateVerdict> refusals = new ArrayList<>();
 
+        // First, because it is about the plan itself rather than about any module's contents, and because
+        // an operator who has to add a flag would rather learn that before Maven runs a test.
+        record(runner, refusals, ForcingGate.check(plan, force));
+        if (GatePlan.fallbackVersions(modules)) {
+            record(runner, refusals, FallbackVersionsGate.check(umbrella, releasing, force));
+        }
         for (Module module : GatePlan.changelog(modules)) {
             record(runner, refusals, ChangelogGate.check(umbrella, module, releasing.get(module), force));
         }

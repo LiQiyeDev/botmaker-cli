@@ -3,10 +3,13 @@ package com.botmaker.cli.release;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * The decide pass: what a set of flags would actually release — {@code release.sh}'s {@code resolve_version}
@@ -99,6 +102,18 @@ public final class Plan {
     /** Every module asked for, decided or not, in decide order. */
     public List<Decision> decisions() {
         return decisions;
+    }
+
+    /**
+     * The modules the operator actually named — every one that reached the pass, released or skipped.
+     *
+     * <p>Distinct from {@link #releasing()} on purpose, and {@link ForcingGate} is why: a module skipped
+     * for having no changes <b>was</b> requested, so no forcing edge is being ignored on its account, while
+     * a module absent from this set was never considered at all.
+     */
+    public Set<Module> requested() {
+        return decisions.stream().map(Decision::module)
+                .collect(Collectors.toCollection(() -> EnumSet.noneOf(Module.class)));
     }
 
     /** What is actually being cut, in tag order — the map every writer downstream takes. */
