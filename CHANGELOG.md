@@ -31,6 +31,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   and QR encoder optional on purpose, so a headless bot links neither — because only toolkit types are
   nameable exclusively from plugin code.
 
+- **`ArchetypeSkeletonTest` — a second plugin, built by the test that needs it.** Every architectural claim
+  here rested on one plugin, and that plugin is compiled from the same reactor as the toolkit it uses, so it
+  cannot be out of step with anything. The test substitutes the archetype's three placeholders itself,
+  compiles the skeleton with `javac` against this JVM's classpath plus the toolkit's classes, loads it
+  through `PluginLoader` and runs every `PluginValidator` check over a `PluginSubject.local`. No Maven, no
+  network — a test skipped on the machine that would have caught the regression is not a test. **It caught
+  one on the day it was written**: `Source.string` had grown a return type and the skeleton no longer
+  compiled, so `botmaker plugin new` produced a project that failed on its first build. What it does not
+  cover, stated rather than implied: the archetype's own descriptor, since nothing here runs velocity.
+
 - **`editorDependencies` in a registry entry, composed by `plugin publish` and checked by the gate.** What a
   plugin needs on the *editor's* classpath and does not carry into a bot is exactly the set it declares
   `optional` — the one thing resolving the plugin cannot tell a host, since `optional` means *not
