@@ -252,7 +252,8 @@ final class PluginPublishCommand implements Callable<Integer> {
      * scope check must; this asks the other question, for the one field that leaves the machine.
      */
     private String declaredContractVersion(Path pom) throws IOException {
-        String declared = Poms.find(Poms.dependencies(pom), "com.github.LiQiyeDev", "botmaker-studio-api")
+        String declared = Poms.find(Poms.dependencies(pom),
+                        PluginValidator.CONTRACT_GROUP, PluginValidator.CONTRACT_ARTIFACT)
                 .map(Poms.Dependency::version)
                 .orElse("");
         return Poms.interpolate(declared, Poms.properties(pom)).trim();
@@ -291,6 +292,52 @@ final class PluginPublishCommand implements Callable<Integer> {
         return null;
     }
 
+    /**
+     * The entry's {@code editorDependencies}: every {@code optional} dependency this pom declares, minus the
+     * ones a host must not be asked for.
+     *
+     * <p><b>Read rather than asked for, because the pom already says it.</b> {@code optional} means <i>not
+     * transitive</i>, so these are exactly the dependencies a host adding this plugin's coordinate to a
+     * project does <em>not</em> get — the list is the definition of what has to be written down, and
+     * anything else in the pom needs no entry because resolving the plugin already brings it.
+     *
+     * <p>Two exclusions, both platform rules rather than preferences. <b>{@code org.openjfx}</b> is
+     * parent-first in {@code PluginLoader}, so the host's own JavaFX is what every plugin links whatever a
+     * project's pom says; asking a bot to resolve a JavaFX distribution for its platform is a resolve that
+     * fails on a headless machine for a jar nothing would have loaded from. <b>The contract and the
+     * toolkit</b> are refused because a bot's pom must never declare either — the host has one copy of the
+     * contract by construction, and the toolkit is the plugin's own dependency at {@code compile} scope,
+     * which {@code pom-scopes} and {@code plugin-deps} already enforce from the plugin's side.
+     *
+     * <p>A version that is a property this pom does not resolve is skipped with a warning rather than
+     * written: the registry's readers can do nothing with {@code ${javalin.version}}, and a silently
+     * malformed line is worse than an absent one. Same judgement as
+     * {@link #contractVersionRefusal(String)}, one severity down — a contract version nobody can compare is
+     * the whole entry's problem, and one unusable companion is one plugin feature's.
+     */
+    static List<String> editorDependencies(Console console, List<Poms.Dependency> declared) {
+        List<String> companions = new ArrayList<>();
+        for (Poms.Dependency dependency : declared) {
+            if (!dependency.optional()) continue;
+            if ("org.openjfx".equals(dependency.groupId())) continue;
+            if (PluginValidator.CONTRACT_GROUP.equals(dependency.groupId())
+                    && (PluginValidator.CONTRACT_ARTIFACT.equals(dependency.artifactId())
+                    || PluginValidator.TOOLKIT_ARTIFACT.equals(dependency.artifactId()))) {
+                continue;
+            }
+            String version = dependency.version();
+            if (version == null || version.isBlank() || version.contains("${")) {
+                console.warn(dependency.coordinate() + " is optional but its version reads "
+                        + (version == null || version.isBlank() ? "nothing" : version)
+                        + ", which nobody can resolve — it is left out of editorDependencies, so a project"
+                        + " installing this plugin will not get it.");
+                continue;
+            }
+            companions.add(dependency.coordinate() + ":" + version);
+        }
+        return companions;
+    }
+
     private RegistryEntry compose(PluginSubject subject, String published, String contractVersion)
             throws IOException {
         Console console = parent.main().console();
@@ -326,6 +373,7 @@ final class PluginPublishCommand implements Callable<Integer> {
                 List.of(tags.split("\\s*,\\s*")).stream().filter(t -> !t.isBlank()).toList(),
                 contractVersion,
                 valueTypeIds,
+                editorDependencies(console, Poms.dependencies(subject.pom())),
                 // The tag the world can download, which is the version the registry's gate will resolve and
                 // run the same checks against. A verifiedAt with no version beside it is a date attached to
                 // no artifact — and the pom's own <version>, which stood here until 2026-09-04, is a date

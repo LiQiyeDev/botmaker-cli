@@ -46,9 +46,17 @@ public final class PluginValidator {
      */
     private static final Pattern ID = Pattern.compile("[a-z0-9]([a-z0-9._-]*[a-z0-9])?");
 
-    private static final String CONTRACT_GROUP = "com.github.LiQiyeDev";
-    private static final String CONTRACT_ARTIFACT = "botmaker-studio-api";
-    private static final String TOOLKIT_ARTIFACT = "botmaker-plugin-toolkit";
+    /**
+     * The two coordinates the platform's own rules are about.
+     *
+     * <p>Public because the checks are not their only reader: {@code plugin publish} composes a registry
+     * entry that must not name either, and the registry's gate refuses one that does. Three spellings of
+     * {@code botmaker-plugin-toolkit} in one module is how a rule comes to be enforced in two places and one
+     * of them means something slightly different.
+     */
+    public static final String CONTRACT_GROUP = "com.github.LiQiyeDev";
+    public static final String CONTRACT_ARTIFACT = "botmaker-studio-api";
+    public static final String TOOLKIT_ARTIFACT = "botmaker-plugin-toolkit";
 
     private PluginValidator() {
     }

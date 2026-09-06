@@ -178,6 +178,12 @@ public final class RegistryGate {
             }
         }
 
+        String editorDependencies = editorDependenciesRefusal(entry.editorDependencies());
+        if (editorDependencies != null) {
+            console.error(editorDependencies);
+            return false;
+        }
+
         String coordinate = entry.coordinate() + ":" + entry.verifiedVersion();
         PluginSubject subject;
         try {
@@ -198,6 +204,48 @@ public final class RegistryGate {
             return false;
         }
         return true;
+    }
+
+    /**
+     * Why this entry's {@code editorDependencies} cannot be published, or {@code null} when it can.
+     *
+     * <p><b>Every line here becomes a {@code provided} dependency in a stranger's project pom</b>, written
+     * by Studio when somebody installs the plugin. So the shape is checked rather than trusted: a
+     * {@code groupId:artifactId:version} with three non-blank parts, named once, and neither the contract nor
+     * the toolkit — a bot's pom must declare neither, and an entry asking for one is the {@code pom-scopes}
+     * failure one level removed, arriving in a project whose owner never saw this file.
+     *
+     * <p>It is checked here and not by {@link PluginValidator} because it is a fact about the <em>entry</em>,
+     * not about the plugin: the jar resolves identically either way, which is the whole reason the list has
+     * to exist. {@code plugin publish} composes it from the pom and so cannot get it wrong; a hand-written
+     * entry can, and a hand-written entry is exactly what a pull request may be.
+     */
+    static String editorDependenciesRefusal(List<String> editorDependencies) {
+        List<String> seen = new java.util.ArrayList<>();
+        for (String entry : editorDependencies) {
+            String[] parts = entry == null ? new String[0] : entry.trim().split(":");
+            if (parts.length != 3 || parts[0].isBlank() || parts[1].isBlank() || parts[2].isBlank()) {
+                return "editorDependencies holds \"" + entry + "\", which is not a"
+                        + " groupId:artifactId:version. Studio writes each of these into the pom of every"
+                        + " project that installs this plugin, so it has to be a coordinate Maven resolves.";
+            }
+            String coordinate = parts[0] + ":" + parts[1];
+            if (seen.contains(coordinate)) {
+                return "editorDependencies names " + coordinate + " twice. Two versions of one artifact on a"
+                        + " classpath is the least diagnosable failure this platform has.";
+            }
+            seen.add(coordinate);
+            if (PluginValidator.CONTRACT_GROUP.equals(parts[0])
+                    && (PluginValidator.CONTRACT_ARTIFACT.equals(parts[1])
+                    || PluginValidator.TOOLKIT_ARTIFACT.equals(parts[1]))) {
+                return "editorDependencies names " + coordinate + ", which a bot's pom must never declare."
+                        + " The host already has the contract — a second copy makes a contract class two"
+                        + " different classes — and the toolkit is this plugin's own dependency at compile"
+                        + " scope, so it arrives with the plugin. Take it out of the entry and declare it in"
+                        + " the plugin's pom.";
+            }
+        }
+        return null;
     }
 
     /**

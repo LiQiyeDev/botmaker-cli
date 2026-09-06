@@ -31,6 +31,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   and QR encoder optional on purpose, so a headless bot links neither — because only toolkit types are
   nameable exclusively from plugin code.
 
+- **`editorDependencies` in a registry entry, composed by `plugin publish` and checked by the gate.** What a
+  plugin needs on the *editor's* classpath and does not carry into a bot is exactly the set it declares
+  `optional` — the one thing resolving the plugin cannot tell a host, since `optional` means *not
+  transitive*. `plugin publish` reads that set off the plugin's own pom, so the author writes nothing:
+  `org.openjfx` is left out (the loader is parent-first for `javafx.`, so the host's copy is what every
+  plugin links), the contract and the toolkit are left out (a bot's pom must declare neither), and a version
+  that is an unresolved property is skipped with a warning rather than published as text. `RegistryGate`
+  refuses a hand-written entry that gets any of that wrong, because every line in the field becomes a
+  `provided` dependency in a stranger's project pom. What it replaces was an `if (isSdk(…))` inside Studio
+  over a list written in Studio's own source — the one privilege plugin #1 had, and the one the platform
+  exists to refuse. `PluginValidator`'s contract and toolkit coordinates are public now, so the check, the
+  publish and the gate spell them once.
+
 - **`com.botmaker.cli.release`, the first slice of `release.sh`'s port.** A library, not a command: the
   release has three callers (a terminal, `release.yml` and `botmaker-dashboard`), CI cannot run a JavaFX
   app, so the owner of these decisions is a package that prints nothing and knows no command line — the

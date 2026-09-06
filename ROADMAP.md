@@ -2,6 +2,21 @@
 
 ## Done
 
+### 2026-09-06 — a registry entry says what its plugin needs in the editor
+
+`RegistryEntry.editorDependencies` — `groupId:artifactId:version` of what a plugin needs on the host's
+classpath and does not carry into a bot. `plugin publish` composes it by reading the plugin's own pom for the
+dependencies it declares `optional`, which is exactly the set a host resolving the plugin does **not** get;
+`org.openjfx` (parent-first in the loader), the contract and the toolkit (a bot's pom must declare neither)
+are excluded, and a version that is an unresolved property is skipped with a warning rather than published.
+`RegistryGate.editorDependenciesRefusal` refuses a malformed line, a duplicate coordinate and either of the
+two excluded artifacts, because every line becomes a `provided` dependency in a stranger's project pom.
+
+**What it replaces is the interesting part**: `MavenService.installPlugin` had an `if (isSdk(…))` branch over
+a list written in Studio's own source — the only privilege plugin #1 held, and the one the platform exists to
+refuse. `PluginValidator`'s `CONTRACT_GROUP`/`CONTRACT_ARTIFACT`/`TOOLKIT_ARTIFACT` are public now so the
+check, the publish and the gate spell them once.
+
 ### 2026-09-04 — `sudo dnf install botmaker`
 
 nfpm builds the rpm and the deb from `packaging/nfpm.yaml` in the `release` job, and a `pages` job lifted

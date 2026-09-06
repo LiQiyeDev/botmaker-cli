@@ -20,7 +20,7 @@ import java.util.List;
  */
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 @JsonPropertyOrder({"id", "name", "coordinate", "repo", "description", "tags", "minContractVersion",
-        "valueTypeIds", "verifiedVersion", "verifiedAt"})
+        "valueTypeIds", "editorDependencies", "verifiedVersion", "verifiedAt"})
 public record RegistryEntry(
         /** The plugin's own {@code StudioPlugin.id()} — the registry's primary key, and unrenameable. */
         String id,
@@ -44,6 +44,23 @@ public record RegistryEntry(
          */
         List<String> valueTypeIds,
         /**
+         * {@code groupId:artifactId:version} of everything this plugin needs on the <b>editor's</b> classpath
+         * and does not bring itself — read from its pom as the dependencies it declares {@code optional}.
+         *
+         * <p><b>It is here because it is the one thing about a plugin that resolving the plugin cannot
+         * tell you.</b> {@code optional} means not transitive, so a host that adds this coordinate to a
+         * project's pom gets the jar and none of these; the SDK's plugin half needs a web server and a QR
+         * encoder marked exactly that way, so a project that installed it got a toolbar button that failed
+         * with a missing class. Studio held the list in its own source until 2026-09-06, as an
+         * {@code if (isSdk(…))} — a privilege plugin #1 had and a second plugin could not ask for.
+         *
+         * <p>Empty is the ordinary case, and the honest one: a plugin whose dependencies are ordinary needs
+         * no list, because they are transitive. Two kinds of coordinate are refused rather than listed —
+         * {@code org.openjfx:*}, which {@code PluginLoader} resolves parent-first so the host's own copy is
+         * what every plugin links, and the contract and the toolkit, which a bot's pom must never declare.
+         */
+        List<String> editorDependencies,
+        /**
          * The version the checks last ran against, and the version the registry's gate resolves.
          *
          * <p>{@link #coordinate} deliberately carries none — the index names a plugin, not a release, and
@@ -58,5 +75,6 @@ public record RegistryEntry(
     public RegistryEntry {
         tags = tags == null ? List.of() : List.copyOf(tags);
         valueTypeIds = valueTypeIds == null ? List.of() : List.copyOf(valueTypeIds);
+        editorDependencies = editorDependencies == null ? List.of() : List.copyOf(editorDependencies);
     }
 }

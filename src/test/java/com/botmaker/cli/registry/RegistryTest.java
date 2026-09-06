@@ -84,7 +84,7 @@ class RegistryTest {
 
     private RegistryEntry entry(String id, List<String> valueTypeIds) {
         return new RegistryEntry(id, id, "com.github.someone:" + id, "someone/" + id, "", List.of(),
-                "1.0.0", valueTypeIds, "v1.0.0", "2026-08-28");
+                "1.0.0", valueTypeIds, List.of(), "v1.0.0", "2026-08-28");
     }
 
     private Path write(RegistryEntry... entries) throws IOException {
