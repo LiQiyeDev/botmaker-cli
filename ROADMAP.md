@@ -2,6 +2,41 @@
 
 ## Done
 
+### 2026-09-06 — the release port's dry-run matrix was run for the first time, and the diff is not empty
+
+`package-info.java` said *"the plan's cutover test passes — the script's `--dry-run` and this library's
+agree across the flag matrix"*. Running that matrix — fourteen flag combinations, both implementations,
+stdout diffed with colour and the script's `==> ` prefix stripped — found **fourteen of fourteen differ**.
+The claim was written and never checked. `docs/release-port-divergences.md` is the whole list with a verdict
+each; the paragraph is corrected.
+
+**The half that matters agrees, and that is the finding rather than a consolation.** Every module chosen,
+every version computed, every skip, every gate verdict and every refusal message is byte-identical across
+all fourteen, exit codes included — the two gates added the same day included, so `--sdk 1.1.7` alone
+refuses in both with the same paragraph naming `--studio`. What differs is narration, gate order and echo
+form.
+
+Three things come out of it that were not known before:
+
+- **One divergence writes a permanent artifact.** The umbrella's pointer commit is `release: archetype
+  v0.0.5` from the script and `release: plugin-archetype v0.0.5` from here, because `Module.shortName()`
+  derives what `release.sh:2101-2110` tabulates. The toolkit differs the same way. The submodule's own
+  commit agrees in both. This blocks the cutover on its own, and which spelling is right is the
+  maintainer's call rather than the port's.
+- **The cutover test has to be restated, because one divergence is a behaviour worth keeping.** `Gates` runs
+  every gate where the script stops at its first `die`, so an empty stdout diff is unreachable for any
+  refusing run — five of the fourteen. The property worth having was never the empty diff; it was *the
+  decisions, the gate verdicts and the refusal texts agree*, which they do.
+- **One thing the matrix could not test at all**: `stamp_changelog` is a bounded `sed -i` in the script and a
+  whole-file rewrite here, and a dry run writes nothing, so the two outputs have never been compared. Do
+  that byte for byte before cutting over.
+
+The rest — a missing `DRY RUN` banner, a missing JitPack-verify line, gate order, unquoted command echoes, a
+push pass that reports "would push X if it is ahead" instead of the script's real ahead-counts — are small
+and one-directional: the port is missing or mangling something the script says.
+
+`.github/workflows/release.yml:151` still invokes `./release.sh`, and stays that way.
+
 ### 2026-09-06 — a registry entry says what its plugin needs in the editor
 
 `RegistryEntry.editorDependencies` — `groupId:artifactId:version` of what a plugin needs on the host's

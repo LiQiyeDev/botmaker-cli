@@ -104,11 +104,29 @@
  * {@link com.botmaker.cli.release.Jitpack} the wait between tags. {@code botmaker release} is the terminal
  * caller.
  *
- * <p><b>What is left is not code.</b> The plan's cutover test passes — the script's {@code --dry-run} and
- * this library's agree across the flag matrix — and what remains is one real single-module release, cut
- * through here and watched end to end, before {@code release.sh} is deleted. Until then a release from this
- * package requires {@code --execute}, which is the inverse of the script's default on purpose: the port is
- * what is on trial, and a tag is permanent.
+ * <p><b>What is left is partly code, and this paragraph said otherwise until 2026-09-06.</b> It claimed the
+ * cutover test passed — that the script's {@code --dry-run} and this library's agree across the flag matrix
+ * — and running that matrix for the first time found <b>fourteen combinations out of fourteen differ</b>.
+ * {@code botmaker-cli/docs/release-port-divergences.md} is the whole list, with a verdict each.
+ *
+ * <p>The half that matters does agree, and it is worth saying in the same breath: every module chosen,
+ * every version computed, every skip, every gate verdict and every refusal message is byte-identical,
+ * including the two gates added the same day. What differs is narration, gate order and echo form — plus
+ * one thing that reaches a permanent artifact, and so blocks the cutover on its own: the umbrella's pointer
+ * commit is worded {@code release: plugin-archetype v0.0.5} here and {@code release: archetype v0.0.5} by
+ * the script, because {@link com.botmaker.cli.release.Module#shortName()} derives what the script tabulates.
+ *
+ * <p><b>And the test itself has to be restated, because one divergence is a behaviour worth keeping.</b>
+ * {@link com.botmaker.cli.release.Gates} runs every gate where the script stops at its first {@code die},
+ * so an empty stdout diff is unreachable for any refusing run — which is five of the fourteen. The property
+ * worth having was never the empty diff; it was <i>the decisions, the gate verdicts and the refusal texts
+ * agree</i>, and the empty diff was a proxy for it. That is the condition to hold the cutover to.
+ *
+ * <p>So what remains is: settle the pointer-commit wording, compare a real changelog stamp byte for byte
+ * (the dry run writes nothing, so the matrix could not), close the small one-directional gaps, and then cut
+ * one real single-module release through here and watch it end to end, before {@code release.sh} is
+ * deleted. Until then a release from this package requires {@code --execute}, which is the inverse of the
+ * script's default on purpose: the port is what is on trial, and a tag is permanent.
  *
  * <p><b>Nothing in this package has pushed anything yet, and that is now a fact about its callers rather
  * than about its code.</b> {@link com.botmaker.cli.release.CommitTagPush} can push; it is reached only

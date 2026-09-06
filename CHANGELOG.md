@@ -7,6 +7,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Documentation
+
+- **`docs/release-port-divergences.md` — what the release port's dry run still says differently.** The
+  package documentation claimed the cutover test passed; running it for the first time found fourteen of
+  fourteen flag combinations differ. Every decision, gate verdict and refusal text agrees byte for byte —
+  what differs is narration, gate order and echo form, plus one thing that reaches a permanent artifact:
+  the umbrella's pointer commit is worded `release: archetype v0.0.5` by `release.sh` and `release:
+  plugin-archetype v0.0.5` here. The cutover condition is restated with it, because one divergence is a
+  behaviour worth keeping: this package reports every gate where the script stops at the first refusal, so
+  an empty stdout diff is unreachable for a refusing run and was never the property worth having.
+
 ### Added
 
 - **Two release gates that refuse a shape the forcing rules only ever documented.** `ForcingGate` refuses a
