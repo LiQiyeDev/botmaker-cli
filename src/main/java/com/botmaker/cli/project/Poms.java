@@ -41,8 +41,22 @@ public final class Poms {
     private Poms() {
     }
 
-    /** One {@code <dependency>} as the pom declares it. {@code scope} is {@code ""} when it is omitted. */
-    public record Dependency(String groupId, String artifactId, String version, String scope) {
+    /**
+     * One {@code <dependency>} as the pom declares it. {@code scope} is {@code ""} when it is omitted.
+     *
+     * <p><b>{@code optional} is read as well as {@code scope}, because they are one mistake seen from two
+     * sides.</b> A {@code provided} toolkit is absent from the plugin's own runtime classpath; an
+     * {@code optional} one is present there and absent from every consumer's, since {@code optional} means
+     * <i>not transitive</i>. Both compile, both produce a jar, and both are found by a host that cannot load
+     * the plugin. This project has shipped the second three times.
+     */
+    public record Dependency(String groupId, String artifactId, String version, String scope,
+                             boolean optional) {
+
+        /** A dependency being <i>written</i>, where nothing has ever wanted {@code optional}. */
+        public Dependency(String groupId, String artifactId, String version, String scope) {
+            this(groupId, artifactId, version, scope, false);
+        }
 
         public String coordinate() {
             return groupId + ":" + artifactId;
@@ -59,7 +73,7 @@ public final class Poms {
         List<Dependency> out = new ArrayList<>();
         for (Element dep : children(deps, "dependency")) {
             out.add(new Dependency(text(dep, "groupId"), text(dep, "artifactId"),
-                    text(dep, "version"), text(dep, "scope")));
+                    text(dep, "version"), text(dep, "scope"), "true".equals(text(dep, "optional"))));
         }
         return List.copyOf(out);
     }

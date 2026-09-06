@@ -9,7 +9,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FallbackVersionsGateTest {
 
-    /** The shape the constants actually have in MavenService.java, javadoc and all. */
+    /**
+     * The shape a constant actually has in MavenService.java, javadoc and all.
+     *
+     * <p>It keeps a {@code TOOLKIT_FALLBACK_VERSION} that Studio deleted on 2026-09-06, deliberately: this
+     * is a fixture for the <i>reader</i>, and a second constant whose name ends in the first's is what
+     * exercises the pattern below. The tripwire at the bottom is the test that reads the real file.
+     */
     private static final String SOURCE = """
             public class MavenService {
                 /** Version used for the SDK when none is supplied. */

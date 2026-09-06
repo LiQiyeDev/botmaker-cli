@@ -81,17 +81,19 @@ public record Forcing(Module upstream, Module downstream, String reason) {
             new Forcing(Module.PLUGIN_HOST, Module.STUDIO, "Studio builds plugin-host from source at the "
                     + "ref in its .deps.env, which this release moves"),
 
-            // These last two are the interesting pair, and the reason is NOT the old one. Neither module is
-            // a Studio dependency any more — both left botmaker-studio/pom.xml on 2026-09-02 and neither is
-            // in studio's .deps.env. What they are is STRING CONSTANTS IN STUDIO'S SOURCE, sed-bumped by the
+            // This last one is the interesting case, and the reason is NOT the old one. The SDK is not a
+            // Studio dependency any more — it left botmaker-studio/pom.xml on 2026-09-02 and is not in
+            // studio's .deps.env. What it is is a STRING CONSTANT IN STUDIO'S SOURCE, sed-bumped by the
             // release: a pin Studio WRITES, not a pin Studio HAS.
+            //
+            // It had a twin, PLUGIN_TOOLKIT -> STUDIO over MavenService.TOOLKIT_FALLBACK_VERSION, deleted
+            // 2026-09-06 with the constant. A generated bot's pom stopped declaring the toolkit at all: the
+            // SDK brings it at compile scope, and a direct entry in the bot's pom outranked that by
+            // nearest-wins, pinning a bot to a toolkit its own SDK was never built against. With nothing in
+            // Studio's source naming a toolkit version, a toolkit release owes Studio nothing.
             new Forcing(Module.SDK, Module.STUDIO,
                     "the release bumps MavenService.SDK_FALLBACK_VERSION, so Studio's own source changes — "
-                            + "without a Studio release, freshly created bots keep pinning the previous SDK"),
-            new Forcing(Module.PLUGIN_TOOLKIT, Module.STUDIO,
-                    "the release bumps MavenService.TOOLKIT_FALLBACK_VERSION, so Studio's own source "
-                            + "changes — without a Studio release, freshly created bots keep pinning the "
-                            + "previous toolkit"));
+                            + "without a Studio release, freshly created bots keep pinning the previous SDK"));
 
     /** Every reason this module is dragged in by what is already being cut. Empty means it is not forced. */
     public static List<Forcing> forcedBy(Module downstream, Set<Module> cutting) {

@@ -123,7 +123,7 @@ final class PluginNewCommand implements Callable<Integer> {
         console.out("");
         console.out("  cd " + name);
         console.out("  mvn verify         # the generated tests should pass unedited");
-        console.out("  botmaker plugin validate  # the same seven checks the registry runs");
+        console.out("  botmaker plugin validate  # the same eight checks the registry runs");
         return 0;
     }
 

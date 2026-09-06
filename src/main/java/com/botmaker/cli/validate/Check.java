@@ -1,7 +1,7 @@
 package com.botmaker.cli.validate;
 
 /**
- * The seven things asked of a plugin, in the order they are asked.
+ * The eight things asked of a plugin, in the order they are asked.
  *
  * <p><b>An enum rather than seven strings, and the reason is the whole point of this package.</b> Two
  * programs in two repositories report these: the author's {@code botmaker validate} and the registry's CI on
@@ -34,7 +34,18 @@ public enum Check {
     EDITORS("editors", "Every slot editor builds and answers"),
 
     /** {@code botmaker-studio-api} is {@code provided}; {@code botmaker-plugin-toolkit} is not. */
-    POM_SCOPES("pom-scopes", "The plugin's dependency scopes are right");
+    POM_SCOPES("pom-scopes", "The plugin's dependency scopes are right"),
+
+    /**
+     * Nothing a plugin's own code links is declared {@code optional}.
+     *
+     * <p>Separate from {@link #POM_SCOPES} because it is a different word with a different reader:
+     * {@code scope} says what is on the classpath while this jar builds and runs, {@code optional} says what
+     * a <i>consumer</i> of this jar resolves. An {@code optional} toolkit is present in every test the
+     * author runs and absent from the classpath a host loads the plugin onto, which is why this one has
+     * shipped three times and is the last check rather than a clause in the previous one.
+     */
+    PLUGIN_DEPS("plugin-deps", "Nothing the plugin needs is declared optional");
 
     private final String id;
     private final String title;

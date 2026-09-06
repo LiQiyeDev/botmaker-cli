@@ -16,7 +16,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 
 /**
- * {@code botmaker plugin validate} — the seven checks, against a working copy or a published coordinate.
+ * {@code botmaker plugin validate} — the eight checks, against a working copy or a published coordinate.
  *
  * <p>This class is a <em>front end</em>: it resolves a subject, calls
  * {@link PluginValidator#validate(PluginSubject)} and prints. Every rule it appears to enforce lives in that
@@ -24,7 +24,7 @@ import java.util.concurrent.Callable;
  * the author sees and the gate does not.
  */
 @Command(name = "validate",
-        header = "Run the seven checks the plugin registry runs.",
+        header = "Run the eight checks the plugin registry runs.",
         description = "A local pass is not a promise the pull request passes: two checks ask whether an id "
                 + "is already claimed, and only the registry's index holds those answers.",
         mixinStandardHelpOptions = true)
@@ -69,7 +69,7 @@ final class PluginValidateCommand implements Callable<Integer> {
             console.out(results.stream().filter(CheckResult::failed).count() + " check(s) failed.");
             return 1;
         }
-        // Said on every pass, and not as a formality. Two of the seven checks ask whether an id is already
+        // Said on every pass, and not as a formality. Two of the eight checks ask whether an id is already
         // claimed, and locally nothing is claimed — the registry's index is what holds those answers. An
         // author who reads "all checks passed" as "the PR will be accepted" has been misled by this tool.
         console.out("All checks passed"

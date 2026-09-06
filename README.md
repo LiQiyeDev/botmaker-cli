@@ -88,7 +88,7 @@ botmaker plugin new discord-notifier --group com.example --plugin-id com.example
 
 ### `botmaker plugin validate [dir]`
 
-The seven checks, and the same code the registry's CI runs on a pull request:
+The eight checks, and the same code the registry's CI runs on a pull request:
 
 | check | passes when |
 |---|---|
@@ -99,6 +99,7 @@ The seven checks, and the same code the registry's CI runs on a pull request:
 | `value-types` | no `ValueType` id collides |
 | `editors` | `slotEditors()` builds and every predicate answers without throwing |
 | `pom-scopes` | `botmaker-studio-api` is `provided`; `botmaker-plugin-toolkit` is not |
+| `plugin-deps` | `botmaker-plugin-toolkit` is not `optional` — `optional` means *not transitive*, so a host resolves a plugin without it |
 
 `--coordinate G:A:V` validates a **published** artifact instead of your working copy. That is the one that
 catches a plugin which builds on your machine and publishes a pom nobody else can resolve.

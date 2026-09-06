@@ -90,7 +90,7 @@ repositories:
 ## Next — and the ordering is not free
 
 1. **The registry** (`botmaker-plugin-registry`, plan phase 8). Its CI resolves this module as a library and
-   calls `PluginValidator.validate` with the index's claimed ids filled in. Two of the seven checks
+   calls `PluginValidator.validate` with the index's claimed ids filled in. Two of the eight checks
    (`id`, `value-types`) can only ever half-answer here, and the registry is where the other half lives.
 2. **`--json` output.** A CI job wants the report as data, not as a terminal rendering. `CheckResult` is
    already a record and Jackson is already a dependency; the only real decision is whether the schema is

@@ -15,12 +15,16 @@ import java.util.regex.Pattern;
  * Refuse a Studio release whose fallback constants name a version nobody published —
  * {@code release.sh}'s {@code check_fallback_versions}.
  *
- * <p><b>Two string literals in Studio's source are pins Studio <i>writes</i> rather than pins Studio
- * <i>has</i></b>: {@code MavenService.SDK_FALLBACK_VERSION} and {@code MavenService.TOOLKIT_FALLBACK_VERSION},
- * which are what a freshly generated bot's pom declares. Neither is a dependency, so nothing in a build
- * resolves them and no compiler, test or JitPack poll can see one go wrong. They are moved by a {@code sed}
- * over the literal on every {@code --sdk} / {@code --plugin-toolkit} release, and the {@code sed} runs only
- * if Studio is in that run — which is the hole {@link ForcingGate} closes from the other side.
+ * <p><b>A string literal in Studio's source is a pin Studio <i>writes</i> rather than a pin Studio
+ * <i>has</i></b>: {@code MavenService.SDK_FALLBACK_VERSION}, which is the SDK version a freshly generated
+ * bot's pom declares. It is not a dependency, so nothing in a build resolves it and no compiler, test or
+ * JitPack poll can see it go wrong. It is moved by a {@code sed} over the literal on every {@code --sdk}
+ * release, and the {@code sed} runs only if Studio is in that run — which is the hole {@link ForcingGate}
+ * closes from the other side.
+ *
+ * <p>There were two until 2026-09-06. {@code TOOLKIT_FALLBACK_VERSION} went with the toolkit entry a
+ * generated pom used to declare: the SDK brings the toolkit transitively at {@code compile} scope, and a
+ * direct entry in the bot's pom outranked it by nearest-wins.
  *
  * <p><b>This is the failure mode of three consecutive Studio releases.</b> 1.0.34, 1.0.35 and 1.0.36 each
  * exist only because the previous one pointed the constant at an SDK tag whose JitPack build had published
@@ -40,12 +44,17 @@ import java.util.regex.Pattern;
  */
 public final class FallbackVersionsGate {
 
-    /** The constant, and the module whose tags it must name. */
-    private static final Map<Module, String> CONSTANTS = new EnumMap<>(Map.of(
-            Module.SDK, "SDK_FALLBACK_VERSION",
-            Module.PLUGIN_TOOLKIT, "TOOLKIT_FALLBACK_VERSION"));
+    /**
+     * The constant, and the module whose tags it must name.
+     *
+     * <p>It is a map of one since 2026-09-06, and it stays a map: {@code TOOLKIT_FALLBACK_VERSION} was
+     * deleted with the toolkit entry a generated bot's pom used to declare, and the shape that outlived it is
+     * the general one — any constant Studio's source holds naming another module's tag belongs here.
+     */
+    private static final Map<Module, String> CONSTANTS =
+            new EnumMap<>(Map.of(Module.SDK, "SDK_FALLBACK_VERSION"));
 
-    /** Studio's file holding both, relative to that module's directory. */
+    /** Studio's file holding them, relative to that module's directory. */
     static final String SOURCE =
             "src/main/java/com/botmaker/studio/services/MavenService.java";
 
@@ -93,9 +102,13 @@ public final class FallbackVersionsGate {
         }
 
         if (problems.isEmpty()) {
+            // The verb agrees with the count: the map held two constants until 2026-09-06 and holds one now,
+            // and a line reading "SDK_FALLBACK_VERSION resolve" is a line that was written for a list.
             return GateVerdict.ok(checked.isEmpty()
                     ? "  studio: no fallback constant to check this run — ok"
-                    : "  studio: " + String.join(", ", checked) + " resolve to published tags — ok");
+                    : "  studio: " + String.join(", ", checked)
+                            + (checked.size() == 1 ? " resolves to a published tag — ok"
+                                                   : " resolve to published tags — ok"));
         }
         if (force) {
             return GateVerdict.forced("  studio: a fallback constant names no published tag — FORCED");

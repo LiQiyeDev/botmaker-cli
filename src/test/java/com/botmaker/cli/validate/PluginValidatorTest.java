@@ -100,7 +100,7 @@ class PluginValidatorTest {
     }
 
     /**
-     * All seven, always, whatever happened. A report that shrinks when things go wrong leaves the reader
+     * All eight, always, whatever happened. A report that shrinks when things go wrong leaves the reader
      * unable to tell a check that passed from one that never ran — which is why {@link Status#SKIP} exists
      * at all rather than a check simply being absent.
      */
@@ -110,8 +110,9 @@ class PluginValidatorTest {
                 PluginSubject.local(List.of(), null, "1.0.0"));
         assertEquals(List.of(Check.values()), results.stream().map(CheckResult::check).toList());
         assertTrue(results.getFirst().failed());
-        // POM_SCOPES still runs — it reads a file and needs nothing loaded, so a broken classpath is no
-        // reason to leave the author's likeliest mistake unmentioned.
+        // POM_SCOPES and PLUGIN_DEPS still run — both read a file and need nothing loaded, so a broken
+        // classpath is no reason to leave the author's likeliest mistakes unmentioned.
+        assertEquals(Status.SKIP, result(results, Check.POM_SCOPES).status());
         assertEquals(Status.SKIP, last(results).status());
     }
 
@@ -247,6 +248,40 @@ class PluginValidatorTest {
                 PluginSubject.local(List.of(classes), null, ""));
         assertEquals(Status.SKIP, result(results, Check.POM_SCOPES).status());
         assertFalse(results.stream().anyMatch(CheckResult::failed), () -> render(results));
+    }
+
+    // ------------------------------------------------------------------------------------------------
+    // plugin deps
+    // ------------------------------------------------------------------------------------------------
+
+    /**
+     * The mistake that has shipped three times: {@code optional} on the toolkit.
+     *
+     * <p>It is not a scope, which is why it is not {@link Check#POM_SCOPES}. The jar builds, every test in
+     * the plugin's own build passes, and this very validator passes over a working copy — because an
+     * {@code optional} dependency <em>is</em> on its own project's classpath. What it is not is on any
+     * <em>consumer's</em>, and the first consumer is the host that loads the plugin.
+     */
+    @Test
+    void a_toolkit_that_is_optional_fails(@TempDir Path dir) throws IOException {
+        PluginSubject subject = subject(dir, GOOD_POM.replace(
+                "<artifactId>botmaker-plugin-toolkit</artifactId>",
+                "<artifactId>botmaker-plugin-toolkit</artifactId><optional>true</optional>"));
+        List<CheckResult> results = PluginValidator.validate(subject);
+        CheckResult deps = result(results, Check.PLUGIN_DEPS);
+        assertEquals(Status.FAIL, deps.status());
+        assertTrue(deps.detail().getFirst().contains("optional"), deps.detail()::toString);
+        // And the scope check is unmoved by it — the two ask different questions of the same element.
+        assertEquals(Status.PASS, result(results, Check.POM_SCOPES).status());
+    }
+
+    /** A plugin that uses no toolkit widget has nothing here to get wrong. */
+    @Test
+    void a_pom_with_no_toolkit_passes_plugin_deps(@TempDir Path dir) throws IOException {
+        PluginSubject subject = subject(dir, GOOD_POM.replaceAll(
+                "(?s)<dependency>\\s*<groupId>com.github.LiQiyeDev</groupId>\\s*"
+                        + "<artifactId>botmaker-plugin-toolkit</artifactId>.*?</dependency>", ""));
+        assertEquals(Status.PASS, result(PluginValidator.validate(subject), Check.PLUGIN_DEPS).status());
     }
 
     // ------------------------------------------------------------------------------------------------

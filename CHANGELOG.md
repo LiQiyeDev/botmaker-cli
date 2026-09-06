@@ -16,10 +16,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   2026-09-05, so the `sed` that moves `MavenService.SDK_FALLBACK_VERSION` never ran and Studio v1.0.37
   shipped pinning the previous SDK. It refuses rather than pulling the module in, because a tag nobody
   named cannot be un-pushed either; the refusal names the flag to add and quotes the edge's own reason.
-  `FallbackVersionsGate` is its companion: on a `--studio` release, `SDK_FALLBACK_VERSION` and
-  `TOOLKIT_FALLBACK_VERSION` must each name a tag that exists — those are pins Studio *writes* into a
-  generated bot's pom, so nothing in any build resolves them and no test can see one go wrong. It checks
-  existence, never which version is the right default, and exempts a module being cut in the same run.
+  `FallbackVersionsGate` is its companion: on a `--studio` release, `SDK_FALLBACK_VERSION` must name a tag
+  that exists — that is a pin Studio *writes* into a generated bot's pom, so nothing in any build resolves
+  it and no test can see it go wrong. It checks existence, never which version is the right default, and
+  exempts a module being cut in the same run.
+
+- **An eighth check, `plugin-deps`: the toolkit must not be `optional`.** `optional` means *not transitive*,
+  so the dependency is on the plugin's own classpath — every test passes, the jar builds, and
+  `botmaker plugin validate` over a working copy passes — and absent from the classpath a host resolves the
+  plugin onto. The host cannot supply one either, so the plugin fails to load and the symptom is an empty
+  palette. This project has shipped that exact shape three times. It is separate from `pom-scopes` because
+  it is a different word read by a different party: a scope says what this build sees, `optional` says what
+  a consumer sees. Not a blanket refusal of every `optional` dependency — the SDK marks the pilot's server
+  and QR encoder optional on purpose, so a headless bot links neither — because only toolkit types are
+  nameable exclusively from plugin code.
 
 - **`com.botmaker.cli.release`, the first slice of `release.sh`'s port.** A library, not a command: the
   release has three callers (a terminal, `release.yml` and `botmaker-dashboard`), CI cannot run a JavaFX

@@ -77,8 +77,11 @@ class OrderTest {
         assertEquals(Set.of(Module.SHARED), upstreamsOf(Module.SESSION));
         assertEquals(Set.of(Module.SHARED, Module.SESSION, Module.STUDIO_API, Module.PLUGIN_TOOLKIT),
                 upstreamsOf(Module.SDK));
+        // The toolkit is deliberately NOT here since 2026-09-06: a generated bot's pom stopped declaring it,
+        // MavenService.TOOLKIT_FALLBACK_VERSION went with the entry, and with no toolkit version written
+        // anywhere in Studio's source a toolkit release changes nothing here.
         assertEquals(Set.of(Module.SHARED, Module.SESSION, Module.SDK, Module.STUDIO_API,
-                Module.PLUGIN_HOST, Module.PLUGIN_TOOLKIT), upstreamsOf(Module.STUDIO));
+                Module.PLUGIN_HOST), upstreamsOf(Module.STUDIO));
     }
 
     @Test

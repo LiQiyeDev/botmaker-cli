@@ -21,7 +21,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * The seven checks, run once, over a {@link PluginSubject}.
+ * The eight checks, run once, over a {@link PluginSubject}.
  *
  * <p><b>This class is the reason {@code botmaker-cli}'s main artifact is a library.</b> It has two callers
  * in two repositories — the author's {@code botmaker validate} and the plugin registry's CI on a pull
@@ -54,7 +54,7 @@ public final class PluginValidator {
     }
 
     /**
-     * Runs every check and reports each one, in {@link Check} order and always all seven.
+     * Runs every check and reports each one, in {@link Check} order and always all eight.
      *
      * <p>A check whose predecessor made it unanswerable is a {@link Status#SKIP} with the reason, never a
      * second failure and never silence: a report that shrinks when things go wrong is a report that hides
@@ -70,6 +70,7 @@ public final class PluginValidator {
                 results.add(CheckResult.skip(check, "the classpath did not resolve"));
             }
             results.add(checkPomScopes(subject));
+            results.add(checkPluginDeps(subject));
             return List.copyOf(results);
         }
 
@@ -99,6 +100,7 @@ public final class PluginValidator {
         }
 
         results.add(checkPomScopes(subject));
+        results.add(checkPluginDeps(subject));
         return List.copyOf(results);
     }
 
@@ -385,6 +387,60 @@ public final class PluginValidator {
                         : "contract provided, toolkit "
                                 + (toolkit.scope().isEmpty() ? "compile" : toolkit.scope()))
                 : CheckResult.fail(Check.POM_SCOPES, problems);
+    }
+
+    // -------------------------------------------------------------------------------------------------
+    // 8 — plugin deps
+    // -------------------------------------------------------------------------------------------------
+
+    /**
+     * The toolkit is not {@code optional}.
+     *
+     * <p><b>{@code optional} means <i>not transitive</i>, and this project has shipped that mistake three
+     * times.</b> On 2026-08-28 the SDK's {@code optional} toolkit meant Studio's classpath had none, so
+     * {@code ServiceLoader} could not resolve {@code SdkPlugin}'s own superclass and Studio ran with an
+     * empty palette and one line on stderr. On 2026-09-04 the same dependency was found {@code optional}
+     * again. On 2026-09-05 it was {@code javafx-controls}, linked from {@code SdkPlugin}'s <i>constructor</i>,
+     * so {@code v1.1.5} could not be instantiated by any host without JavaFX — which every headless host is.
+     *
+     * <p><b>It is invisible in the module that has the bug</b>, which is the whole reason it is a check
+     * here. An {@code optional} dependency <i>is</i> on its own project's classpath: every test passes, the
+     * jar builds, and {@code botmaker plugin validate} over a working copy passes too. Only a consumer
+     * resolving the published artifact sees it — and the first consumer is a host loading the plugin.
+     *
+     * <p><b>Why the toolkit by name, rather than every {@code optional} dependency.</b> A plugin is nobody's
+     * dependency, so {@code optional} never buys one anything — but the SDK is a library <em>and</em> a
+     * plugin in one jar, and it marks the pilot's server and QR encoder {@code optional} precisely so a
+     * headless bot links neither. A blanket refusal would refuse the plugin this platform was built around.
+     * The toolkit is different: nothing but plugin code can name a toolkit type, so an {@code optional} one
+     * is a dependency the plugin's own classes link and no consumer resolves. That is a fact about the
+     * graph, not a judgement.
+     */
+    private static CheckResult checkPluginDeps(PluginSubject subject) {
+        if (subject.pom() == null) {
+            return CheckResult.skip(Check.PLUGIN_DEPS, "no pom.xml to read");
+        }
+        List<Poms.Dependency> declared;
+        try {
+            declared = Poms.dependencies(subject.pom());
+        } catch (Exception e) {
+            return CheckResult.fail(Check.PLUGIN_DEPS, "cannot read " + subject.pom() + ": " + e.getMessage());
+        }
+        Poms.Dependency toolkit = Poms.find(declared, CONTRACT_GROUP, TOOLKIT_ARTIFACT).orElse(null);
+        if (toolkit == null) {
+            return CheckResult.pass(Check.PLUGIN_DEPS, "no toolkit to be optional");
+        }
+        if (toolkit.optional()) {
+            return CheckResult.fail(Check.PLUGIN_DEPS, List.of(
+                    TOOLKIT_ARTIFACT + " is declared `optional`; it must not be",
+                    "`optional` means NOT TRANSITIVE: the toolkit is on this build's own classpath, so"
+                            + " everything here compiles and passes, and it is absent from the classpath a"
+                            + " host resolves this plugin onto",
+                    "the host cannot supply one either — botmaker-studio must never depend on the toolkit —"
+                            + " so the plugin fails to load and the symptom is an empty palette",
+                    "remove <optional>true</optional>; a plugin is nobody's dependency, so it buys nothing"));
+        }
+        return CheckResult.pass(Check.PLUGIN_DEPS, "toolkit is transitive");
     }
 
     // -------------------------------------------------------------------------------------------------
